@@ -21,7 +21,9 @@ export const MOCK_PRODUCTS: Product[] = [
       location: 'Kathmandu',
       joinedDate: 'Jan 2023',
       communities: ['KU Alumni', 'KTM Techies'],
-      mutualConnections: 2
+      mutualConnections: 2,
+      dealsCount: 24,
+      feedback: { punctual: 18, polite: 22, asDescribed: 15, fast: 19 }
     },
     description: 'Selling my iPhone 13 Pro. 128GB, Graphite color. Battery health is 92%. Comes with original box and cable. No scratches.'
   },
@@ -45,7 +47,9 @@ export const MOCK_PRODUCTS: Product[] = [
       location: 'Lalitpur',
       joinedDate: 'Mar 2022',
       communities: ['Lalitpur Riders', 'Women in Biz'],
-      mutualConnections: 5
+      mutualConnections: 5,
+      dealsCount: 41,
+      feedback: { punctual: 38, polite: 40, asDescribed: 37, fast: 35 }
     },
     description: 'Well maintained Royal Enfield Classic 350. Serviced regularly. Only 12,000km driven. Urgent sale.'
   },
@@ -69,7 +73,9 @@ export const MOCK_PRODUCTS: Product[] = [
       location: 'Bhaktapur',
       joinedDate: 'Nov 2023',
       communities: ['Bhaktapur Artisans'],
-      mutualConnections: 0
+      mutualConnections: 0,
+      dealsCount: 9,
+      feedback: { punctual: 5, polite: 8, asDescribed: 7, fast: 4 }
     },
     description: 'Authentic handmade Dhaka shawl from Bhaktapur. High quality material and traditional patterns.'
   }

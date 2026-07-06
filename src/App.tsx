@@ -23,7 +23,12 @@ import {
   Info,
   X,
   Camera,
-  Tag
+  Tag,
+  Trash2,
+  Award,
+  Settings,
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -37,25 +42,378 @@ function cn(...inputs: ClassValue[]) {
 
 // --- Components ---
 
-const TrustScore = ({ score }: { score: number }) => {
-  const colorClass = score > 80 ? 'text-teal-600' : score > 50 ? 'text-amber-600' : 'text-gray-500';
-  const emoji = score > 80 ? '🌟' : score > 50 ? '👍' : '🤝';
+const SurveyWizard = ({ 
+  sellerName, 
+  onSubmit, 
+  onCancel 
+}: { 
+  sellerName: string; 
+  onSubmit: (rating: 'good' | 'okay' | 'bad', accolades: string[], comment: string) => void; 
+  onCancel: () => void; 
+}) => {
+  const [step, setStep] = useState(1);
+  const [rating, setRating] = useState<'good' | 'okay' | 'bad' | null>(null);
+  const [selectedAccolades, setSelectedAccolades] = useState<string[]>([]);
+  const [comment, setComment] = useState('');
+
+  const toggleAccolade = (badge: string) => {
+    setSelectedAccolades(prev => 
+      prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
+    );
+  };
+
+  const handleNext = () => {
+    if (step < 3) {
+      setStep(prev => prev + 1);
+    } else {
+      if (rating) {
+        onSubmit(rating, selectedAccolades, comment);
+      }
+    }
+  };
+
+  const handlePrev = () => {
+    if (step > 1) {
+      setStep(prev => prev - 1);
+    }
+  };
 
   return (
-    <div className="flex flex-col items-end">
-      <div className="flex items-center gap-1">
-        <span className={cn("font-bold text-lg", colorClass)}>{score}%</span>
-        <span>{emoji}</span>
+    <div className="p-6 flex flex-col space-y-6">
+      {/* Progress indicators */}
+      <div className="flex items-center justify-between px-2">
+        {[1, 2, 3].map((num) => (
+          <div key={num} className="flex items-center gap-1.5">
+            <div className={cn(
+              "w-6 h-6 rounded-full flex items-center justify-center text-xs font-black",
+              step === num 
+                ? "bg-teal-800 text-white" 
+                : step > num 
+                  ? "bg-teal-100 text-teal-800" 
+                  : "bg-gray-100 text-gray-400"
+            )}>
+              {num}
+            </div>
+            <span className={cn(
+              "text-[10px] font-black uppercase tracking-wider",
+              step === num ? "text-teal-800" : "text-gray-400"
+            )}>
+              {num === 1 ? "Rating" : num === 2 ? "Accolades" : "Message"}
+            </span>
+            {num < 3 && <div className="w-6 h-0.5 bg-gray-100" />}
+          </div>
+        ))}
       </div>
-      <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${score}%` }}
-          className={cn("h-full", score > 80 ? 'bg-teal-600' : score > 50 ? 'bg-amber-600' : 'bg-gray-500')}
-        />
+
+      {/* Step Contents */}
+      {step === 1 && (
+        <div className="space-y-4 animate-fadeIn">
+          <label className="block text-xs font-black uppercase tracking-wider text-gray-400 text-center">
+            How was your local handshake experience?
+          </label>
+          <div className="space-y-2.5">
+            <button 
+              onClick={() => { setRating('good'); setStep(2); }}
+              className={cn(
+                "w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer",
+                rating === 'good' 
+                  ? "border-teal-700 bg-teal-50 text-teal-900 shadow-md" 
+                  : "border-gray-100 hover:bg-gray-50 text-gray-700"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">☀️</span>
+                <div>
+                  <span className="font-extrabold text-sm block">Excellent Deal!</span>
+                  <span className="text-[10px] text-gray-400 font-bold block mt-0.5">Highly polite, extremely helpful neighbor</span>
+                </div>
+              </div>
+              <span className="text-xs font-black text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md">
+                +2.5% Sero
+              </span>
+            </button>
+
+            <button 
+              onClick={() => { setRating('okay'); setStep(2); }}
+              className={cn(
+                "w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer",
+                rating === 'okay' 
+                  ? "border-teal-700 bg-teal-50 text-teal-900 shadow-md" 
+                  : "border-gray-100 hover:bg-gray-50 text-gray-700"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🤝</span>
+                <div>
+                  <span className="font-extrabold text-sm block">Ordinary Handshake</span>
+                  <span className="text-[10px] text-gray-400 font-bold block mt-0.5">Smooth transaction with no particular issues</span>
+                </div>
+              </div>
+              <span className="text-xs font-black text-teal-600 uppercase tracking-wider bg-teal-50 px-2 py-1 rounded-md">
+                +0.5% Sero
+              </span>
+            </button>
+
+            <button 
+              onClick={() => { setRating('bad'); setStep(2); }}
+              className={cn(
+                "w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all cursor-pointer",
+                rating === 'bad' 
+                  ? "border-red-500 bg-red-50 text-red-900 shadow-md" 
+                  : "border-gray-100 hover:bg-gray-50 text-gray-700"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💔</span>
+                <div>
+                  <span className="font-extrabold text-sm block">Disappointing Trade</span>
+                  <span className="text-[10px] text-gray-400 font-bold block mt-0.5">Kept waiting, impolite, or wrong item info</span>
+                </div>
+              </div>
+              <span className="text-xs font-black text-red-600 uppercase tracking-wider bg-red-100 px-2 py-1 rounded-md">
+                -4.0% Sero
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-4 animate-fadeIn">
+          <label className="block text-xs font-black uppercase tracking-wider text-gray-400 text-center">
+            Accolades: Select what they excelled in!
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: 'punctual', emoji: '⏰', title: 'Punctual', desc: 'Kept time precisely' },
+              { id: 'polite', emoji: '🤝', title: 'Super Polite', desc: 'Respectful & warm' },
+              { id: 'asDescribed', emoji: '🔍', title: 'As Described', desc: 'Product matches text' },
+              { id: 'fast', emoji: '💬', title: 'Fast Chat', desc: 'Extremely responsive' }
+            ].map((badge) => {
+              const isSelected = selectedAccolades.includes(badge.id);
+              return (
+                <div 
+                  key={badge.id}
+                  onClick={() => toggleAccolade(badge.id)}
+                  className={cn(
+                    "p-3.5 rounded-2xl border-2 text-center cursor-pointer transition-all select-none",
+                    isSelected 
+                      ? "border-teal-700 bg-teal-50/50 shadow-sm" 
+                      : "border-gray-100 hover:bg-gray-50"
+                  )}
+                >
+                  <span className="text-2xl block mb-1">{badge.emoji}</span>
+                  <span className="font-black text-xs text-gray-900 block">{badge.title}</span>
+                  <span className="text-[9px] text-gray-400 font-bold block mt-0.5">{badge.desc}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-4 animate-fadeIn">
+          <label className="block text-xs font-black uppercase tracking-wider text-gray-400 text-center">
+            Write a warm neighbor comment
+          </label>
+          <textarea 
+            rows={3}
+            placeholder="Your kind comments motivate the local community. (Optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-teal-700 font-medium text-xs placeholder:text-gray-300 text-gray-900"
+          />
+        </div>
+      )}
+
+      {/* Buttons */}
+      <div className="flex gap-3 pt-2">
+        {step > 1 && (
+          <button 
+            onClick={handlePrev}
+            className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all"
+          >
+            Back
+          </button>
+        )}
+        <button 
+          onClick={handleNext}
+          disabled={step === 1 && !rating}
+          className="flex-[2] py-4 bg-teal-800 hover:bg-teal-900 text-white font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {step === 3 ? "Submit & Shake Hands" : "Continue"}
+        </button>
       </div>
-      <span className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider font-semibold">Community Trust</span>
     </div>
+  );
+};
+
+const getSeroTier = (score: number) => {
+  if (score >= 95) return { name: 'Unshakable Bond', emoji: '💎', color: 'text-rose-600', bg: 'bg-rose-50 border-rose-100', accent: 'bg-rose-500', desc: 'Flawless trust with perfect local community records.' };
+  if (score >= 85) return { name: 'Golden Clasp', emoji: '✨', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100', accent: 'bg-amber-500', desc: 'Highly active handshaker with shining local reviews.' };
+  if (score >= 70) return { name: 'Solid Grip', emoji: '💪', color: 'text-teal-600', bg: 'bg-teal-50 border-teal-100', accent: 'bg-teal-600', desc: 'Steady and highly reliable neighbor trusted in the vicinity.' };
+  if (score >= 50) return { name: 'Warm Handshake', emoji: '☀️', color: 'text-orange-500', bg: 'bg-orange-50 border-orange-100', accent: 'bg-orange-500', desc: 'Kind and helpful neighbor building local connections.' };
+  return { name: 'Sero Sprout', emoji: '🌱', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100', accent: 'bg-emerald-500', desc: 'Fresh local neighbor starting their trading journey.' };
+};
+
+const TrustScore = ({ score, seller }: { score: number; seller?: any }) => {
+  const [showModal, setShowModal] = useState(false);
+  const tier = getSeroTier(score);
+
+  // Fallback defaults if no feedback stats provided
+  const dealsCount = seller?.dealsCount || Math.round(score * 0.3);
+  const feedback = seller?.feedback || {
+    punctual: Math.round(dealsCount * 0.8),
+    polite: Math.round(dealsCount * 0.95),
+    asDescribed: Math.round(dealsCount * 0.85),
+    fast: Math.round(dealsCount * 0.75)
+  };
+
+  return (
+    <>
+      <div 
+        onClick={() => setShowModal(true)}
+        className="flex flex-col items-end cursor-pointer group hover:scale-[1.02] active:scale-[0.98] transition-all"
+        title="View Sero Handshake Report"
+      >
+        <div className="flex items-center gap-1.5">
+          <span className={cn("font-black text-lg tracking-tight", tier.color)}>{score}%</span>
+          <span className="text-base filter drop-shadow-sm group-hover:animate-bounce">{tier.emoji}</span>
+        </div>
+        
+        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-100 shadow-inner">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${score}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className={cn("h-full rounded-full", tier.accent)}
+          />
+        </div>
+        <span className="text-[9px] text-gray-400 mt-1 uppercase tracking-wider font-extrabold flex items-center gap-0.5 group-hover:text-teal-700 transition-colors">
+          🤝 {tier.name}
+        </span>
+      </div>
+
+      {/* Sero Trust Report Modal Overlay */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-2xl border border-gray-50 flex flex-col"
+            >
+              {/* Header */}
+              <div className="bg-teal-800 text-white p-6 relative">
+                <button 
+                  onClick={() => setShowModal(false)}
+                  className="absolute top-4 right-4 bg-white/15 hover:bg-white/25 text-white p-1.5 rounded-full backdrop-blur-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-teal-200 mb-1">
+                  <Handshake size={14} className="text-amber-400" />
+                  <span>Serofero Trust Card</span>
+                </div>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="w-14 h-14 bg-white rounded-full flex-shrink-0 border-2 border-amber-400 flex items-center justify-center overflow-hidden">
+                    {seller?.avatarUrl ? (
+                      <img src={seller.avatarUrl} alt={seller.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={28} className="text-teal-800" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-black text-lg">{seller?.name || "Neighbor"}</h4>
+                    <p className="text-xs text-teal-100/70">Joined {seller?.joinedDate || "Recent"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-6">
+                {/* Score & Tier Overview */}
+                <div className={cn("p-4 rounded-2xl border flex items-center justify-between", tier.bg)}>
+                  <div className="max-w-[70%]">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Trust Level</span>
+                    <h5 className={cn("font-black text-base flex items-center gap-1", tier.color)}>
+                      {tier.name} {tier.emoji}
+                    </h5>
+                    <p className="text-[10px] text-gray-500 font-medium leading-tight mt-1">{tier.desc}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-gray-400 block font-black uppercase tracking-wider">Score</span>
+                    <span className={cn("text-3xl font-black tracking-tighter", tier.color)}>{score}%</span>
+                  </div>
+                </div>
+
+                {/* Handshakes Count */}
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-teal-700">
+                      <Handshake size={18} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-gray-900 block">Completed Handshakes</span>
+                      <span className="text-[10px] text-gray-400 font-bold">Safe Face-to-Face Deals</span>
+                    </div>
+                  </div>
+                  <span className="bg-teal-100 text-teal-900 text-sm font-black px-3 py-1 rounded-full">{dealsCount} times</span>
+                </div>
+
+                {/* Neighborhood Feedback badges */}
+                <div className="space-y-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block px-1">Neighbor Accolades</span>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">⏰ Punctual</span>
+                        <span className="text-[9px] text-gray-400 font-medium">Kept time</span>
+                      </div>
+                      <span className="text-xs font-black text-teal-800">{feedback.punctual}</span>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">🤝 Super Polite</span>
+                        <span className="text-[9px] text-gray-400 font-medium">Warm & respectful</span>
+                      </div>
+                      <span className="text-xs font-black text-teal-800">{feedback.polite}</span>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">🔍 As Described</span>
+                        <span className="text-[9px] text-gray-400 font-medium">Item accurate</span>
+                      </div>
+                      <span className="text-xs font-black text-teal-800">{feedback.asDescribed}</span>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100/50 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">💬 Fast Chat</span>
+                        <span className="text-[9px] text-gray-400 font-medium">Quick responses</span>
+                      </div>
+                      <span className="text-xs font-black text-teal-800">{feedback.fast}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Footer */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
+                <p className="text-[9px] text-gray-400 font-bold mb-1">
+                  Serofero guarantees handshake honesty via mutual reviews.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
@@ -176,7 +534,7 @@ const ProductDetail = ({ product, onBack }: { product: Product, onBack: () => vo
             </p>
           </div>
         </div>
-        <TrustScore score={product.seller.trustScore} />
+        <TrustScore score={product.seller.trustScore} seller={product.seller} />
       </div>
 
       {/* Content */}
@@ -242,7 +600,21 @@ const ProductDetail = ({ product, onBack }: { product: Product, onBack: () => vo
 
 // --- Sell Screen ---
 
-const SellScreen = ({ onBack }: { onBack: () => void }) => {
+const SellScreen = ({ 
+  onBack,
+  onSubmit
+}: { 
+  onBack: () => void;
+  onSubmit: (productData: {
+    title: string;
+    price: number;
+    category: string;
+    location: string;
+    description: string;
+    imageUrl: string;
+    isNegotiable: boolean;
+  }) => void;
+}) => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [mainPhotoIndex, setMainPhotoIndex] = useState(0);
   const [title, setTitle] = useState('');
@@ -293,7 +665,15 @@ const SellScreen = ({ onBack }: { onBack: () => void }) => {
             isFormValid ? "bg-teal-700 text-white shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"
           )}
           onClick={() => {
-            alert('Post uploaded successfully!');
+            onSubmit({
+              title,
+              price: Number(price) || 0,
+              category,
+              location,
+              description,
+              imageUrl: photos[mainPhotoIndex] || photos[0],
+              isNegotiable
+            });
             onBack();
           }}
         >
@@ -484,6 +864,35 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
 
 // --- Main App ---
 
+export const ME_USER = {
+  id: 'me',
+  name: 'Himpower Neighbor',
+  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Himpower',
+  trustScore: 96,
+  location: 'New Baneshwor, KTM',
+  joinedDate: 'Jan 2024',
+  communities: ['KTM Techies', 'Lalitpur Riders'],
+  mutualConnections: 12,
+  dealsCount: 18,
+  feedback: { punctual: 15, polite: 18, asDescribed: 14, fast: 16 }
+};
+
+const INITIAL_MY_PRODUCT: Product = {
+  id: 'my-1',
+  title: 'Vintage Brass Singing Bowl',
+  price: 3500,
+  isNegotiable: true,
+  location: 'New Baneshwor, KTM',
+  category: 'Home',
+  imageUrl: 'https://picsum.photos/seed/bowl/600/600',
+  timeAgo: '1d ago',
+  likes: 8,
+  chats: 2,
+  offersCount: 1,
+  seller: ME_USER,
+  description: 'Beautiful hand-beaten brass singing bowl with wooden striker. Perfect for meditation and mindfulness. Excellent sound resonance.'
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -492,6 +901,53 @@ export default function App() {
   const [location] = useState('Kathmandu');
   const [notification, setNotification] = useState<{ title: string; body: string } | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+
+  // Dynamic products state to support live trust score changes on review
+  const [products, setProducts] = useState<Product[]>([INITIAL_MY_PRODUCT, ...MOCK_PRODUCTS]);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [surveySeller, setSurveySeller] = useState<any | null>(null);
+  const [surveyProduct, setSurveyProduct] = useState<any | null>(null);
+  const [activeChatRoomId, setActiveChatRoomId] = useState<string>('c1');
+  const [newMessage, setNewMessage] = useState('');
+
+  // Rich local mock chat rooms
+  const [chatRooms, setChatRooms] = useState<any[]>([
+    {
+      id: 'c1',
+      product: MOCK_PRODUCTS[0],
+      messages: [
+        { id: 'm1', sender: 'them', text: "Hello! Is this iPhone 13 Pro still available?", time: "10:15 AM" },
+        { id: 'm2', sender: 'me', text: "Namaste! Yes, it is fully functional and ready to go.", time: "10:18 AM" },
+        { id: 'm3', sender: 'them', text: "Wonderful. Can we meet tomorrow at Patan Durbar Square for a secure handshake?", time: "10:20 AM" },
+        { id: 'm4', sender: 'me', text: "Sounds perfect. Let's do it there around 2 PM.", time: "10:21 AM" }
+      ],
+      isCompleted: false,
+    },
+    {
+      id: 'c2',
+      product: MOCK_PRODUCTS[1],
+      messages: [
+        { id: 'm10', sender: 'them', text: "Greetings! I saw your Classic 350. Is it still in Lalitpur?", time: "Yesterday" },
+        { id: 'm11', sender: 'me', text: "Yes, you can inspect it anytime near Jamsikhel.", time: "Yesterday" },
+        { id: 'm12', sender: 'them', text: "Awesome, I will bring cash so we can finalize the deal with a warm handshake.", time: "Yesterday" }
+      ],
+      isCompleted: false,
+    },
+    {
+      id: 'c3',
+      product: MOCK_PRODUCTS[2],
+      messages: [
+        { id: 'm20', sender: 'them', text: "Hello, regarding the Dhaka Shawl, is the weaving authentic?", time: "2 days ago" },
+        { id: 'm21', sender: 'me', text: "Yes, it is entirely handmade by local Bhaktapur artisans.", time: "2 days ago" }
+      ],
+      isCompleted: false,
+    }
+  ]);
+
+  const handleDeleteProduct = (productId: string) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    triggerPushNotification("🗑️ Item Removed", "Your listing has been successfully deleted.");
+  };
 
   // Function to request actual browser notification permissions
   const requestNotificationPermission = async () => {
@@ -555,6 +1011,141 @@ export default function App() {
     trigger.click();
     document.body.removeChild(trigger);
     URL.revokeObjectURL(url);
+  };
+
+  // Complete trade survey handler to dynamically update trust score & feed accolades
+  const handleCompleteSurvey = (rating: 'good' | 'okay' | 'bad', accolades: string[], comment: string) => {
+    let scoreChange = 0.5;
+    if (rating === 'good') scoreChange = 2.5;
+    if (rating === 'bad') scoreChange = -4.0;
+
+    if (surveyProduct && surveySeller) {
+      // 1. Update dynamic products list (re-syncs seller trust metrics across feed)
+      setProducts(prevProducts => {
+        return prevProducts.map(p => {
+          if (p.seller.id === surveySeller.id) {
+            const currentScore = p.seller.trustScore;
+            const newScore = Math.min(100, Math.max(0, Math.round(currentScore + scoreChange)));
+            
+            const currentFeedback = p.seller.feedback || { punctual: 10, polite: 10, asDescribed: 10, fast: 10 };
+            const newFeedback = { ...currentFeedback };
+            accolades.forEach((badge) => {
+              if (badge === 'punctual') newFeedback.punctual += 1;
+              if (badge === 'polite') newFeedback.polite += 1;
+              if (badge === 'asDescribed') newFeedback.asDescribed += 1;
+              if (badge === 'fast') newFeedback.fast += 1;
+            });
+
+            const newDealsCount = (p.seller.dealsCount || 0) + 1;
+
+            return {
+              ...p,
+              seller: {
+                ...p.seller,
+                trustScore: newScore,
+                dealsCount: newDealsCount,
+                feedback: newFeedback
+              }
+            };
+          }
+          return p;
+        });
+      });
+
+      // 2. Mark specific chat room as completed & insert verified ledger bubble
+      setChatRooms(prevRooms => {
+        return prevRooms.map(room => {
+          if (room.product.id === surveyProduct.id && room.product.seller.id === surveySeller.id) {
+            return {
+              ...room,
+              isCompleted: true,
+              messages: [
+                ...room.messages,
+                { 
+                  id: `system-${Date.now()}`, 
+                  sender: 'system', 
+                  text: `🤝 Handshake Completed! Deal verified safely. Peer rating registered into Sero Score. Comment: "${comment || 'Excellent trade!'}"`, 
+                  time: "Just now" 
+                }
+              ]
+            };
+          }
+          return room;
+        });
+      });
+
+      // 3. Trigger native and in-app feedback celebration
+      triggerPushNotification(
+        `💖 Sero Accolades Sent!`,
+        `Thank you! Your feedback for ${surveySeller.name} has been securely added to the Sero local index.`
+      );
+    }
+    
+    setShowSurvey(false);
+  };
+
+  // Mock messaging system handler
+  const handleSendMessage = () => {
+    if (!newMessage.trim()) return;
+    
+    setChatRooms(prev => prev.map(room => {
+      if (room.id === activeChatRoomId) {
+        return {
+          ...room,
+          messages: [
+            ...room.messages,
+            {
+              id: `m-new-${Date.now()}`,
+              sender: 'me',
+              text: newMessage,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]
+        };
+      }
+      return room;
+    }));
+    
+    setNewMessage('');
+    
+    // Auto simulated neighbor reply to maintain hyper-interactivity
+    setTimeout(() => {
+      setChatRooms(prev => prev.map(room => {
+        if (room.id === activeChatRoomId) {
+          if (room.isCompleted) return room; // Stop replies if handshake completed
+          
+          const possibleReplies = [
+            "Dhanyabad! Sounds like a great deal, see you soon! 🤝",
+            "Sure, let's meet up and check the item safely. 👍",
+            "Perfect. I am on my way to Kathmandu, let you know when I arrive!",
+            "Thank you! Serofero handshakes are always the safest!"
+          ];
+          const randomReply = possibleReplies[Math.floor(Math.random() * possibleReplies.length)];
+          
+          return {
+            ...room,
+            messages: [
+              ...room.messages,
+              {
+                id: `m-reply-${Date.now()}`,
+                sender: 'them',
+                text: randomReply,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }
+            ]
+          };
+        }
+        return room;
+      }));
+      
+      const currentRoom = chatRooms.find(r => r.id === activeChatRoomId);
+      if (currentRoom && !currentRoom.isCompleted) {
+        triggerPushNotification(
+          `💬 ${currentRoom.product.seller.name}`,
+          "Sent you a message in Kathmandu vicinity chat."
+        );
+      }
+    }, 2000);
   };
 
   // Auto-dismiss the in-app notification after 5 seconds
@@ -699,7 +1290,7 @@ export default function App() {
 
               {/* Product Grid - Responsive Columns */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-100 border-t border-gray-100">
-                {MOCK_PRODUCTS.map((product) => (
+                {products.map((product) => (
                   <div key={product.id} className="bg-white">
                     <ProductCard 
                       product={product} 
@@ -731,146 +1322,423 @@ export default function App() {
             </>
           )}
 
-          {activeTab === 'profile' && (
-            <div className="p-6 max-w-md mx-auto">
-              <div className="flex flex-col items-center mb-10">
-                <div className="w-24 h-24 bg-teal-100 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-lg">
-                  <User size={48} className="text-teal-700" />
+          {activeTab === 'chat' && (
+            <div className="flex flex-col md:flex-row h-[600px] max-w-5xl mx-auto bg-white overflow-hidden rounded-[32px] border border-gray-100 shadow-xl m-4">
+              {/* Chat Rooms List (Left Sidebar) */}
+              <div className="w-full md:w-80 border-r border-gray-100 flex flex-col bg-gray-50/50">
+                <div className="p-4 border-b border-gray-100 bg-white">
+                  <h2 className="font-black text-base text-gray-900 tracking-tight flex items-center gap-2">
+                    <MessageCircle size={18} className="text-teal-700" />
+                    <span>Vicinity Handshakes</span>
+                  </h2>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Kathmandu Area Chats</p>
                 </div>
-                <h2 className="text-2xl font-black text-gray-900">User Profile</h2>
-                <p className="text-sm text-gray-500">himpower2025@gmail.com</p>
+                
+                <div className="flex-grow overflow-y-auto divide-y divide-gray-50/70 p-2 space-y-1">
+                  {chatRooms.map((room) => {
+                    const isSelected = room.id === activeChatRoomId;
+                    const lastMessage = room.messages[room.messages.length - 1];
+                    const activeSeller = room.product.seller;
+                    const tier = getSeroTier(activeSeller.trustScore);
+
+                    return (
+                      <div 
+                        key={room.id}
+                        onClick={() => {
+                          setActiveChatRoomId(room.id);
+                        }}
+                        className={cn(
+                          "p-3 rounded-2xl flex gap-3 items-center cursor-pointer transition-all",
+                          isSelected 
+                            ? "bg-teal-800 text-white shadow-md shadow-teal-900/10" 
+                            : "bg-white hover:bg-gray-100/50"
+                        )}
+                      >
+                        <div className="relative flex-shrink-0">
+                          <img 
+                            src={activeSeller.avatarUrl} 
+                            alt={activeSeller.name} 
+                            className="w-11 h-11 rounded-full border-2 border-white shadow-sm"
+                          />
+                          <span className="absolute -bottom-1 -right-1 text-xs">{tier.emoji}</span>
+                        </div>
+
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className={cn("font-bold text-xs truncate", isSelected ? "text-white" : "text-gray-900")}>
+                              {activeSeller.name}
+                            </span>
+                            <span className={cn("text-[8px] font-bold uppercase", isSelected ? "text-teal-300" : "text-gray-400")}>
+                              {room.isCompleted ? "✓ Completed" : activeSeller.trustScore + "%"}
+                            </span>
+                          </div>
+                          <p className={cn("text-[10px] font-medium truncate mb-1", isSelected ? "text-teal-100" : "text-teal-800")}>
+                            {room.product.title}
+                          </p>
+                          <p className={cn("text-[11px] truncate", isSelected ? "text-teal-100/80" : "text-gray-500")}>
+                            {lastMessage ? lastMessage.text : "No messages yet"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Application Info</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">App Name</span>
-                      <span className="text-sm font-bold text-teal-800">Serofero</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">Version</span>
-                      <span className="text-sm font-bold text-teal-800">1.0.0</span>
-                    </div>
-                    <div className="pt-4 border-t border-gray-50">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Developed By</p>
+              {/* Convo Details (Right Chat Window) */}
+              {(() => {
+                const currentRoom = chatRooms.find((r) => r.id === activeChatRoomId);
+                if (!currentRoom) return (
+                  <div className="flex-grow flex flex-col items-center justify-center p-8 text-center bg-gray-50/50">
+                    <Handshake size={48} className="text-gray-300 mb-3" />
+                    <p className="text-sm font-bold text-gray-500">Select a local handshake conversation</p>
+                  </div>
+                );
+
+                const activeSeller = currentRoom.product.seller;
+                const tier = getSeroTier(activeSeller.trustScore);
+
+                return (
+                  <div className="flex-grow flex flex-col bg-white">
+                    {/* Chat Header with Deal & Survey Button */}
+                    <div className="p-4 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-teal-800 rounded-xl flex items-center justify-center">
-                          <Handshake size={20} className="text-amber-500" />
-                        </div>
+                        <img 
+                          src={activeSeller.avatarUrl} 
+                          alt={activeSeller.name} 
+                          className="w-10 h-10 rounded-full border border-gray-100"
+                        />
                         <div>
-                          <p className="text-sm font-black text-teal-900">Himpower Pvt. Ltd.</p>
-                          <p className="text-[10px] text-gray-500">Official Developer</p>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-xs text-gray-900 leading-none">{activeSeller.name}</h4>
+                            <span className="text-[10px] bg-teal-50 text-teal-800 px-1.5 py-0.5 rounded-full font-extrabold uppercase tracking-tight">
+                              🤝 {tier.name}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-teal-700 font-medium truncate max-w-[200px] mt-1">
+                            Dealing: {currentRoom.product.title}
+                          </p>
                         </div>
+                      </div>
+
+                      {/* Transaction Completion Button (Survey Trigger) */}
+                      {currentRoom.isCompleted ? (
+                        <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-4 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-black uppercase tracking-wider">
+                          <ShieldCheck size={16} />
+                          <span>Handshake Verified</span>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            setSurveySeller(activeSeller);
+                            setSurveyProduct(currentRoom.product);
+                            setShowSurvey(true);
+                          }}
+                          className="bg-gradient-to-r from-amber-500 to-amber-600 text-teal-950 px-4 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-black shadow-lg hover:from-amber-400 hover:to-amber-500 active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Handshake size={16} />
+                          <span>Complete Trade & Rate</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Messages Log area */}
+                    <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-gray-50/30">
+                      {currentRoom.messages.map((msg: any) => {
+                        if (msg.sender === 'system') {
+                          return (
+                            <div key={msg.id} className="flex justify-center my-4">
+                              <div className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-4 py-3 rounded-2xl max-w-sm text-center text-[11px] font-bold leading-normal shadow-sm">
+                                {msg.text}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        const isMe = msg.sender === 'me';
+                        return (
+                          <div 
+                            key={msg.id}
+                            className={cn("flex gap-2.5", isMe ? "justify-end" : "justify-start")}
+                          >
+                            {!isMe && (
+                              <img 
+                                src={activeSeller.avatarUrl} 
+                                alt={activeSeller.name} 
+                                className="w-8 h-8 rounded-full border border-gray-100 flex-shrink-0"
+                              />
+                            )}
+                            <div className="max-w-[70%]">
+                              <div className={cn(
+                                "p-3.5 rounded-2xl text-xs font-medium leading-relaxed shadow-sm",
+                                isMe 
+                                  ? "bg-teal-800 text-white rounded-tr-none" 
+                                  : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
+                              )}>
+                                {msg.text}
+                              </div>
+                              <span className={cn("text-[9px] text-gray-400 font-bold block mt-1", isMe ? "text-right" : "text-left")}>
+                                {msg.time}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Chat Text Input */}
+                    <div className="p-3 border-t border-gray-100 flex items-center gap-2">
+                      <input 
+                        type="text"
+                        disabled={currentRoom.isCompleted}
+                        placeholder={currentRoom.isCompleted ? "This trade is completed." : "Message Kathmandu neighbor..."}
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSendMessage();
+                        }}
+                        className="flex-grow bg-gray-50 p-3 rounded-xl border-none focus:ring-1 focus:ring-teal-700 font-medium text-xs text-gray-900 disabled:opacity-50"
+                      />
+                      <button 
+                        onClick={handleSendMessage}
+                        disabled={currentRoom.isCompleted || !newMessage.trim()}
+                        className="bg-teal-700 text-white px-5 py-3 rounded-xl font-bold text-xs hover:bg-teal-800 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {activeTab === 'life' && (
+            <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+              <div className="bg-teal-800 text-white p-6 rounded-[28px] shadow-lg relative overflow-hidden">
+                <h2 className="font-black text-2xl tracking-tight mb-1">Vicinity Circles 🌱</h2>
+                <p className="text-xs text-teal-100/70">Connect, interact, and organize meet-ups with trusted neighbors in your community.</p>
+                <div className="mt-4 flex gap-2">
+                  <span className="bg-white/15 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-white/5">3 Active Circles</span>
+                  <span className="bg-amber-500 text-teal-950 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full">Kathmandu Area</span>
+                </div>
+              </div>
+
+              {/* Circles feed */}
+              <div className="space-y-4">
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">KTM Techies Circle</span>
+                    <span className="text-[9px] text-gray-400 font-bold">2 hours ago</span>
+                  </div>
+                  <h3 className="font-black text-sm text-gray-900">Weekly meet-up at Patan Cafe?</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                    "Hey techies! Serofero's Kathmandu network is growing. Anyone up for a coffee chat this Thursday to talk local tech and trade safety? First 3 handshakes get free americano!"
+                  </p>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                    <div className="flex items-center gap-2">
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Anish" className="w-6 h-6 rounded-full" />
+                      <span className="text-[10px] font-bold text-gray-600">Anish Giri (Golden Clasp 🤝)</span>
+                    </div>
+                    <span className="text-[10px] text-teal-800 font-extrabold bg-teal-50 px-2.5 py-1 rounded-lg cursor-pointer">Join Circle</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">Lalitpur Riders</span>
+                    <span className="text-[9px] text-gray-400 font-bold">Yesterday</span>
+                  </div>
+                  <h3 className="font-black text-sm text-gray-900">Classic 350 Group Ride to Dhulikhel</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                    "Planning a warm morning cruise this Saturday. All riders who completed at least 3 Serofero handshakes are welcome. Safety gears are strictly required!"
+                  </p>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                    <div className="flex items-center gap-2">
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sita" className="w-6 h-6 rounded-full" />
+                      <span className="text-[10px] font-bold text-gray-600">Sita Sharma (Unshakable Bond 💎)</span>
+                    </div>
+                    <span className="text-[10px] text-teal-800 font-extrabold bg-teal-50 px-2.5 py-1 rounded-lg cursor-pointer">Join Circle</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6 pb-24">
+              {/* Profile Card */}
+              <div className="bg-gradient-to-br from-teal-800 to-teal-900 text-white p-6 rounded-[28px] shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex flex-col sm:flex-row items-center gap-5">
+                  <div className="w-20 h-20 bg-teal-100 rounded-full overflow-hidden border-4 border-white shadow-md flex items-center justify-center flex-shrink-0">
+                    <img 
+                      src={ME_USER.avatarUrl} 
+                      alt={ME_USER.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div className="text-center sm:text-left flex-grow">
+                    <h2 className="text-xl font-black tracking-tight">{ME_USER.name}</h2>
+                    <p className="text-xs text-teal-100/80 font-medium mt-0.5">himpower2025@gmail.com</p>
+                    <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-3">
+                      <div className="flex items-center gap-1 text-[10px] bg-white/10 text-white font-bold px-2 py-1 rounded-full">
+                        <MapPin size={10} />
+                        <span>{ME_USER.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] bg-white/10 text-white font-bold px-2 py-1 rounded-full">
+                        <Calendar size={10} />
+                        <span>Joined {ME_USER.joinedDate}</span>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Push Notification Panel for Demos */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Push Notification System</h3>
-                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                    Test the built-in push notification engine. For production, this connects to Google Cloud Messaging (FCM) & Apple APNs.
-                  </p>
-                  <div className="space-y-3">
-                    <button 
-                      onClick={requestNotificationPermission}
-                      className={cn(
-                        "w-full py-3.5 rounded-2xl font-bold text-xs transition-all border",
-                        permissionGranted 
-                          ? "bg-green-50 text-green-700 border-green-200" 
-                          : "bg-teal-50 text-teal-800 border-teal-100 hover:bg-teal-100/50"
-                      )}
-                    >
-                      {permissionGranted ? "✓ Device Notifications Allowed" : "Enable Device Notifications"}
-                    </button>
-                    
-                    <button 
-                      onClick={() => triggerPushNotification(
-                        "💰 Price Offer Received!",
-                        "A buyer offered Rs. 4,500 for your vintage leather jacket."
-                      )}
-                      className="w-full py-3.5 bg-teal-800 text-white font-bold rounded-2xl text-xs hover:bg-teal-900 transition-colors"
-                    >
-                      Trigger Demo Offer Notification
-                    </button>
-
-                    <button 
-                      onClick={() => triggerPushNotification(
-                        "💬 Rajesh Kaji",
-                        "Namaste! Can we meet tomorrow at Patan Durbar Square?"
-                      )}
-                      className="w-full py-3.5 bg-amber-500 text-teal-950 font-bold rounded-2xl text-xs hover:bg-amber-400 transition-colors"
-                    >
-                      Trigger Demo Message Notification
-                    </button>
-                  </div>
+              {/* Sero Trust Report Card */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-400">My Sero Trust Rating</h3>
+                  <span className="text-[10px] bg-amber-500 text-teal-950 px-2.5 py-0.5 rounded-full font-black uppercase tracking-tight">
+                    🤝 Unshakable Bond 💎
+                  </span>
                 </div>
-
-                {/* Brand Assets Panel */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Brand Assets & Exports</h3>
-                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                    Download Serofero's official customized handshake icon file directly or sync your repository.
-                  </p>
-                  
-                  <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl mb-4">
-                    <div className="w-16 h-16 bg-teal-800 rounded-2xl flex items-center justify-center border border-teal-700 overflow-hidden">
-                      <img 
-                        src="/logo-icon-2.png" 
-                        alt="Serofero Logo" 
-                        onError={(e) => {
-                          // Fallback to handshake if logo-icon-2.png is not fully synced/loaded yet
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%23fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 0 0 1.4 0l4-4a1 1 0 0 0 0-1.4l-1.4-1.4a1 1 0 0 0-1.4 0L14 13.8"/><path d="m13 11-2-2a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l1.4 1.4a1 1 0 0 0 1.4 0L10 14.2"/><path d="m16 19 2.5 2.5a1 1 0 0 0 1.4-1.4l-1.5-1.5"/><path d="m8 9-2.5-2.5a1 1 0 0 0-1.4 1.4l1.5 1.5"/><path d="M22 22s-1-2-4-2H6c-3 0-4 2-4 2"/><path d="M2 2s1 2 4 2h12c3 0 4-2 4-2"/></svg>';
-                        }}
-                        className="w-full h-full object-cover"
+                
+                <div className="flex items-end gap-3">
+                  <span className="text-4xl font-black text-teal-900 tracking-tight">{ME_USER.trustScore}%</span>
+                  <div className="flex-grow pb-1">
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-500 to-teal-600 rounded-full" 
+                        style={{ width: `${ME_USER.trustScore}%` }}
                       />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-900">Custom Logo</h4>
-                      <p className="text-[11px] text-gray-500">logo-icon-2.png (High Resolution)</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <a 
-                      href="/logo-icon-2.png" 
-                      download="logo-icon-2.png"
-                      className="w-full py-3.5 bg-amber-500 text-teal-950 font-bold rounded-2xl text-xs hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span>Download Custom Icon (PNG)</span>
-                    </a>
-                    
-                    <button 
-                      onClick={downloadSvgFreshly}
-                      className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-[11px] hover:bg-gray-200 transition-colors"
-                    >
-                      Fallback: Download Handshake SVG
-                    </button>
-                    
-                    <div className="pt-4 border-t border-gray-100">
-                      <h5 className="text-[10px] font-black text-teal-900 uppercase tracking-wider mb-1">GitHub Connection Status:</h5>
-                      <p className="text-[10px] text-gray-400 leading-normal">
-                        Your GitHub file <code className="bg-gray-100 text-teal-800 px-1 rounded font-mono">/public/logo-icon-2.png</code> is now active. I have cleaned up the legacy icon files (<code className="bg-gray-100 px-1 font-mono">icon.svg</code>, <code className="bg-gray-100 px-1 font-mono">icon.jpg</code>) so there is zero conflict!
-                      </p>
-                    </div>
                   </div>
                 </div>
 
-                <button className="w-full py-4 bg-gray-50 text-gray-400 font-bold rounded-2xl text-sm">
-                  Settings
-                </button>
+                <div className="flex items-center gap-2 bg-teal-50/50 p-3 rounded-2xl border border-teal-100/30">
+                  <Award size={18} className="text-teal-700 flex-shrink-0" />
+                  <p className="text-xs text-teal-800 font-bold">
+                    Completed Handshakes: <span className="font-extrabold text-teal-950">{ME_USER.dealsCount} verified trades</span>
+                  </p>
+                </div>
+
+                {/* Accolades breakdown */}
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2.5">Accolades Received</h4>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-gray-50/70 p-3 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">⏰</span>
+                        <span className="text-[11px] font-bold text-gray-600">Highly Punctual</span>
+                      </div>
+                      <span className="text-[11px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">+{ME_USER.feedback.punctual}</span>
+                    </div>
+                    <div className="bg-gray-50/70 p-3 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">🤝</span>
+                        <span className="text-[11px] font-bold text-gray-600">Super Polite</span>
+                      </div>
+                      <span className="text-[11px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">+{ME_USER.feedback.polite}</span>
+                    </div>
+                    <div className="bg-gray-50/70 p-3 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">🔍</span>
+                        <span className="text-[11px] font-bold text-gray-600">As Described</span>
+                      </div>
+                      <span className="text-[11px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">+{ME_USER.feedback.asDescribed}</span>
+                    </div>
+                    <div className="bg-gray-50/70 p-3 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">💬</span>
+                        <span className="text-[11px] font-bold text-gray-600">Fast Chat</span>
+                      </div>
+                      <span className="text-[11px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">+{ME_USER.feedback.fast}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* My Listings */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-400">My Listings</h3>
+                  <span className="text-[10px] text-gray-400 font-extrabold">
+                    {products.filter(p => p.seller.id === 'me').length} Items
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {(() => {
+                    const myUploadedListings = products.filter(p => p.seller.id === 'me');
+                    if (myUploadedListings.length === 0) {
+                      return (
+                        <div className="text-center py-8 bg-gray-50/50 rounded-2xl border border-dashed border-gray-100">
+                          <p className="text-xs text-gray-400 font-bold mb-1">No active listings yet</p>
+                          <p className="text-[10px] text-gray-400">Tap the "+" button below to post your first neighborhood item!</p>
+                        </div>
+                      );
+                    }
+                    return myUploadedListings.map(p => (
+                      <div key={p.id} className="flex items-center gap-3 p-3 bg-gray-50/50 rounded-2xl border border-gray-50/60 hover:bg-gray-50 transition-colors group">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                          <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <h4 className="font-black text-xs text-gray-900 truncate">{p.title}</h4>
+                          <p className="font-extrabold text-xs text-teal-800 mt-0.5">Rs. {p.price.toLocaleString()}</p>
+                          <p className="text-[9px] text-gray-400 mt-0.5">{p.location}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[9px] font-black uppercase bg-teal-50 text-teal-800 px-2 py-0.5 rounded-md">
+                            On Sale
+                          </span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProduct(p.id);
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete Listing"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* My Joined Circles */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-gray-400">My Circles</h3>
+                <div className="flex flex-wrap gap-2">
+                  <span className="bg-teal-50 text-teal-800 border border-teal-100/30 text-[10px] font-extrabold px-3 py-1.5 rounded-xl flex items-center gap-1">
+                    💻 KTM Techies Circle
+                  </span>
+                  <span className="bg-amber-50 text-amber-800 border border-amber-100/30 text-[10px] font-extrabold px-3 py-1.5 rounded-xl flex items-center gap-1">
+                    🏍️ Lalitpur Riders
+                  </span>
+                </div>
+              </div>
+
+              {/* Version & Developer Footer */}
+              <div className="pt-4 text-center space-y-4">
+                <p className="text-[10px] text-gray-400 font-medium">
+                  Serofero v1.0.0 • Developed by Himpower Pvt. Ltd.
+                </p>
                 <button 
                   onClick={() => setIsLoggedIn(false)}
-                  className="w-full py-4 text-red-500 font-bold rounded-2xl text-sm hover:bg-red-50 transition-colors"
+                  className="w-full py-4 bg-red-50 text-red-600 hover:bg-red-100/60 active:scale-95 text-xs font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer"
                 >
                   Logout
                 </button>
               </div>
             </div>
           )}
+
+
         </div>
       </main>
 
@@ -887,7 +1755,31 @@ export default function App() {
       {/* Sell Screen Overlay */}
       <AnimatePresence>
         {isSelling && (
-          <SellScreen onBack={() => setIsSelling(false)} />
+          <SellScreen 
+            onBack={() => setIsSelling(false)} 
+            onSubmit={(newProdData) => {
+              const newProduct: Product = {
+                id: `my-uploaded-${Date.now()}`,
+                title: newProdData.title,
+                price: newProdData.price,
+                isNegotiable: newProdData.isNegotiable,
+                location: newProdData.location,
+                category: newProdData.category,
+                imageUrl: newProdData.imageUrl,
+                timeAgo: 'Just now',
+                likes: 0,
+                chats: 0,
+                offersCount: 0,
+                seller: ME_USER,
+                description: newProdData.description
+              };
+              setProducts(prev => [newProduct, ...prev]);
+              triggerPushNotification(
+                "🎉 Item Listed Successfully!",
+                `"${newProdData.title}" is now live in Kathmandu vicinity.`
+              );
+            }}
+          />
         )}
       </AnimatePresence>
 
@@ -932,6 +1824,45 @@ export default function App() {
             product={selectedProduct} 
             onBack={() => setSelectedProduct(null)} 
           />
+        )}
+      </AnimatePresence>
+
+      {/* Serofero Mutual Review Survey Modal */}
+      <AnimatePresence>
+        {showSurvey && surveySeller && surveyProduct && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2000] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 30 }}
+              className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 flex flex-col my-8"
+            >
+              {/* Top Banner */}
+              <div className="bg-teal-800 text-white p-6 relative">
+                <button 
+                  onClick={() => setShowSurvey(false)}
+                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                >
+                  <X size={18} />
+                </button>
+                <div className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-teal-300 mb-1">
+                  <Handshake size={14} className="text-amber-400" />
+                  <span>Sero Trust Verification</span>
+                </div>
+                <h3 className="text-xl font-black tracking-tight mt-1">Sero Handshake Review</h3>
+                <p className="text-xs text-teal-100/70 mt-1">Verify your deal with {surveySeller.name} for "{surveyProduct.title}"</p>
+              </div>
+
+              {/* Multi-step survey wizard form */}
+              <SurveyWizard 
+                sellerName={surveySeller.name}
+                onSubmit={(rating, accolades, comment) => {
+                  handleCompleteSurvey(rating, accolades, comment);
+                }}
+                onCancel={() => setShowSurvey(false)}
+              />
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

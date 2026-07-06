@@ -23,6 +23,13 @@ export interface Seller {
   joinedDate: string;
   communities: string[]; // e.g., ["Kathmandu University", "Patan Local Group"]
   mutualConnections?: number;
+  dealsCount?: number; // Number of completed handshakes
+  feedback?: {
+    punctual: number;
+    polite: number;
+    asDescribed: number;
+    fast: number;
+  };
 }
 
 export type Category = 'Electronics' | 'Fashion' | 'Home' | 'Vehicles' | 'Books' | 'Others';
