@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Bell, 
@@ -490,6 +490,68 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [isSelling, setIsSelling] = useState(false);
   const [location] = useState('Kathmandu');
+  const [notification, setNotification] = useState<{ title: string; body: string } | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+
+  // Function to request actual browser notification permissions
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setPermissionGranted(true);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Helper to trigger a notification (both native if permitted, and beautiful in-app fallback)
+  const triggerPushNotification = (title: string, body: string) => {
+    // 1. Show elegant in-app notification banner
+    setNotification({ title, body });
+    
+    // 2. Try native browser notification if allowed
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+        });
+      } catch (e) {
+        console.warn("Native Notification failed (usually because in background/iframe)", e);
+      }
+    }
+  };
+
+  // Auto-dismiss the in-app notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Request browser permissions automatically on login, and queue a test notification after 12s
+  useEffect(() => {
+    if (isLoggedIn) {
+      // Small delay before requesting to feel organic
+      setTimeout(() => {
+        requestNotificationPermission();
+      }, 2000);
+
+      // Trigger a realistic simulated notification after 12 seconds
+      const simulatedTimer = setTimeout(() => {
+        triggerPushNotification(
+          "💬 Rajesh Kaji",
+          "Namaste! Is the price for the MacBook Pro negotiable? Can we meet at Durbar Marg?"
+        );
+      }, 12000);
+
+      return () => clearTimeout(simulatedTimer);
+    }
+  }, [isLoggedIn]);
 
   if (!isLoggedIn) {
     return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
@@ -497,6 +559,41 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 relative flex flex-col">
+      {/* In-App Push Notification Banner */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 20, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 15 }}
+            onClick={() => {
+              setActiveTab('chat');
+              setNotification(null);
+            }}
+            className="fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl p-4 border border-teal-800/15 z-[1000] flex gap-3 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          >
+            <div className="bg-teal-800 p-2.5 rounded-xl flex-shrink-0 flex items-center justify-center text-amber-400">
+              <Handshake size={20} />
+            </div>
+            <div className="flex-grow">
+              <div className="flex justify-between items-center mb-0.5">
+                <span className="text-[10px] font-black text-teal-900 uppercase tracking-wider">Serofero Notification</span>
+                <span className="text-[9px] text-gray-400 font-bold">Just now</span>
+              </div>
+              <h4 className="font-black text-xs text-gray-900">{notification.title}</h4>
+              <p className="text-[11px] text-gray-500 font-bold leading-tight">{notification.body}</p>
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setNotification(null); }}
+              className="text-gray-400 hover:text-gray-900 p-1 self-start"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header - Responsive Width */}
       <header className="sticky top-0 z-20 bg-teal-800 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -504,9 +601,8 @@ export default function App() {
             <div className="bg-amber-500 p-1.5 rounded-lg shadow-sm">
               <Handshake size={20} className="text-teal-900" />
             </div>
-            <div className="flex flex-col">
-              <h1 className="text-lg font-black tracking-tight leading-none">Serofero</h1>
-              <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">{location}</span>
+            <div>
+              <h1 className="text-xl font-black tracking-tight">Serofero</h1>
             </div>
           </div>
           
@@ -635,6 +731,47 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Push Notification Panel for Demos */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Push Notification System</h3>
+                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                    Test the built-in push notification engine. For production, this connects to Google Cloud Messaging (FCM) & Apple APNs.
+                  </p>
+                  <div className="space-y-3">
+                    <button 
+                      onClick={requestNotificationPermission}
+                      className={cn(
+                        "w-full py-3.5 rounded-2xl font-bold text-xs transition-all border",
+                        permissionGranted 
+                          ? "bg-green-50 text-green-700 border-green-200" 
+                          : "bg-teal-50 text-teal-800 border-teal-100 hover:bg-teal-100/50"
+                      )}
+                    >
+                      {permissionGranted ? "✓ Device Notifications Allowed" : "Enable Device Notifications"}
+                    </button>
+                    
+                    <button 
+                      onClick={() => triggerPushNotification(
+                        "💰 Price Offer Received!",
+                        "A buyer offered Rs. 4,500 for your vintage leather jacket."
+                      )}
+                      className="w-full py-3.5 bg-teal-800 text-white font-bold rounded-2xl text-xs hover:bg-teal-900 transition-colors"
+                    >
+                      Trigger Demo Offer Notification
+                    </button>
+
+                    <button 
+                      onClick={() => triggerPushNotification(
+                        "💬 Rajesh Kaji",
+                        "Namaste! Can we meet tomorrow at Patan Durbar Square?"
+                      )}
+                      className="w-full py-3.5 bg-amber-500 text-teal-950 font-bold rounded-2xl text-xs hover:bg-amber-400 transition-colors"
+                    >
+                      Trigger Demo Message Notification
+                    </button>
                   </div>
                 </div>
 

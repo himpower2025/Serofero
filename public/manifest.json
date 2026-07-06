@@ -1,0 +1,25 @@
+{
+  "name": "Serofero - Local Marketplace",
+  "short_name": "Serofero",
+  "description": "Connecting your surroundings through safe and easy local trade. Developed by Himpower Pvt. Ltd.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#115e59",
+  "theme_color": "#115e59",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
