@@ -523,6 +523,40 @@ export default function App() {
     }
   };
 
+  // Purely dynamic, cache-proof, high-fidelity SVG downloader
+  const downloadSvgFreshly = () => {
+    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="120" fill="#115e59" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#fbbf24" stroke-width="4" stroke-opacity="0.15" stroke-dasharray="16 12" />
+  <g fill="none" stroke="#fbbf24" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 40,290 L 130,250 C 140,220 140,200 130,170 L 40,210 Z" fill="rgba(255, 255, 255, 0.05)" stroke-width="12" />
+    <line x1="130" y1="170" x2="130" y2="250" stroke-width="12" stroke-dasharray="2 4" stroke-opacity="0.5" />
+    <path d="M 472,222 L 382,262 C 372,292 372,312 382,342 L 472,302 Z" fill="rgba(255, 255, 255, 0.05)" stroke-width="12" />
+    <line x1="382" y1="262" x2="382" y2="342" stroke-width="12" stroke-dasharray="2 4" stroke-opacity="0.5" />
+    <path d="M 130,210 C 170,195 190,195 220,215" />
+    <path d="M 130,250 C 160,250 185,260 210,275" />
+    <path d="M 382,262 C 342,245 322,245 292,265" stroke-width="16" />
+    <path d="M 382,302 C 352,315 330,315 305,300" stroke-width="16" />
+    <path d="M 195,190 C 215,150 235,160 250,185 C 260,200 255,215 225,220" />
+    <path d="M 320,320 C 300,360 280,350 265,325 C 255,310 260,295 290,290" />
+    <path d="M 225,220 C 245,205 275,215 280,240 C 285,265 255,275 235,265" />
+    <path d="M 240,240 C 260,225 290,235 295,260 C 300,285 270,295 250,285" />
+    <path d="M 255,260 C 275,245 305,255 310,280 C 315,305 285,315 265,305" />
+    <path d="M 320,160 L 320,180" stroke-width="8" />
+    <path d="M 310,170 L 330,170" stroke-width="8" />
+  </g>
+</svg>`;
+    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const trigger = document.createElement('a');
+    trigger.href = url;
+    trigger.download = 'serofero_handshake_icon.svg';
+    document.body.appendChild(trigger);
+    trigger.click();
+    document.body.removeChild(trigger);
+    URL.revokeObjectURL(url);
+  };
+
   // Auto-dismiss the in-app notification after 5 seconds
   useEffect(() => {
     if (notification) {
@@ -772,6 +806,56 @@ export default function App() {
                     >
                       Trigger Demo Message Notification
                     </button>
+                  </div>
+                </div>
+
+                {/* Brand Assets Panel */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Brand Assets & Exports</h3>
+                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                    Download Serofero's official customized handshake icon file directly or sync your repository.
+                  </p>
+                  
+                  <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl mb-4">
+                    <div className="w-16 h-16 bg-teal-800 rounded-2xl flex items-center justify-center border border-teal-700 overflow-hidden">
+                      <img 
+                        src="/logo-icon-2.png" 
+                        alt="Serofero Logo" 
+                        onError={(e) => {
+                          // Fallback to handshake if logo-icon-2.png is not fully synced/loaded yet
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%23fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 0 0 1.4 0l4-4a1 1 0 0 0 0-1.4l-1.4-1.4a1 1 0 0 0-1.4 0L14 13.8"/><path d="m13 11-2-2a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l1.4 1.4a1 1 0 0 0 1.4 0L10 14.2"/><path d="m16 19 2.5 2.5a1 1 0 0 0 1.4-1.4l-1.5-1.5"/><path d="m8 9-2.5-2.5a1 1 0 0 0-1.4 1.4l1.5 1.5"/><path d="M22 22s-1-2-4-2H6c-3 0-4 2-4 2"/><path d="M2 2s1 2 4 2h12c3 0 4-2 4-2"/></svg>';
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900">Custom Logo</h4>
+                      <p className="text-[11px] text-gray-500">logo-icon-2.png (High Resolution)</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <a 
+                      href="/logo-icon-2.png" 
+                      download="logo-icon-2.png"
+                      className="w-full py-3.5 bg-amber-500 text-teal-950 font-bold rounded-2xl text-xs hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Download Custom Icon (PNG)</span>
+                    </a>
+                    
+                    <button 
+                      onClick={downloadSvgFreshly}
+                      className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-[11px] hover:bg-gray-200 transition-colors"
+                    >
+                      Fallback: Download Handshake SVG
+                    </button>
+                    
+                    <div className="pt-4 border-t border-gray-100">
+                      <h5 className="text-[10px] font-black text-teal-900 uppercase tracking-wider mb-1">GitHub Connection Status:</h5>
+                      <p className="text-[10px] text-gray-400 leading-normal">
+                        Your GitHub file <code className="bg-gray-100 text-teal-800 px-1 rounded font-mono">/public/logo-icon-2.png</code> is now active. I have cleaned up the legacy icon files (<code className="bg-gray-100 px-1 font-mono">icon.svg</code>, <code className="bg-gray-100 px-1 font-mono">icon.jpg</code>) so there is zero conflict!
+                      </p>
+                    </div>
                   </div>
                 </div>
 
