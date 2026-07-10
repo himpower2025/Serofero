@@ -12,6 +12,8 @@ export interface Product {
   likes: number;
   chats: number;
   offersCount: number;
+  isSold?: boolean;
+  originalPrice?: number;
 }
 
 export interface Seller {
