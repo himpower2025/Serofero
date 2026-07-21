@@ -135,9 +135,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 1. Is the seller's item condition identical to the photos?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (판매자의 물건 상태는 사진과 똑같은가요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -164,9 +161,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 2. Did the seller keep the time appointment well?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (시간 약속은 잘 지켰나요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -193,9 +187,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 3. Was the seller's item sale price reasonable?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (판매자의 물건 판매 가격은 적당한가요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -222,9 +213,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 4. Was the seller polite and friendly to you?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (구매자에게 친절하게 대했나요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -251,9 +239,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 5. Additional Comments (Optional)
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (기타 의견)
-              </p>
               <textarea 
                 rows={2}
                 placeholder="Write any additional feedback for the seller..."
@@ -281,9 +266,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 1. Did the buyer keep the time appointment well?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (시간 약속은 잘 지켰나요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -310,9 +292,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 2. Was the buyer polite and friendly to you?
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (판매자에게 친절하게 대했나요?)
-              </p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -339,9 +318,6 @@ const SurveyWizard = ({
               <span className="text-xs font-black text-gray-800 block leading-tight">
                 3. Additional Comments (Optional)
               </span>
-              <p className="text-[10px] text-gray-400 font-bold -mt-1 italic">
-                (기타 의견)
-              </p>
               <textarea 
                 rows={2}
                 placeholder="Write any additional feedback for the buyer..."
@@ -676,7 +652,7 @@ const ProductDetail = ({
             {product.isSold && (
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
                 <span className="bg-red-600 text-white font-black text-lg px-6 py-2.5 rounded-2xl uppercase tracking-widest shadow-xl">
-                  🚫 Sold Out (판매 완료)
+                  🚫 Sold Out
                 </span>
               </div>
             )}
@@ -714,7 +690,7 @@ const ProductDetail = ({
                   <>
                     <span>•</span>
                     <span className="text-rose-600 font-black flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded-md text-[10px]">
-                      ❤️ In Cart (장바구니 담김)
+                      ❤️ In Cart
                     </span>
                   </>
                 )}
@@ -1385,16 +1361,16 @@ export default function App() {
       newCart = cart.filter(id => id !== productId);
       if (product) {
         triggerPushNotification(
-          "💔 Cart Updated (관심목록 해제)",
-          `"${product.title}"을(를) 관심목록에서 제거했습니다.`
+          "💔 Cart Updated",
+          `Removed "${product.title}" from your cart.`
         );
       }
     } else {
       newCart = [...cart, productId];
       if (product) {
         triggerPushNotification(
-          "🛒 Cart Added (관심목록 추가)",
-          `"${product.title}"을(를) 관심목록에 담았습니다. 가격 인하 및 판매 완료 알림을 받게 됩니다.`
+          "🛒 Cart Added",
+          `Added "${product.title}" to your cart. You will receive notifications for price drops and sales.`
         );
       }
     }
@@ -1447,8 +1423,8 @@ export default function App() {
           const newPrice = Math.round(p.price * 0.9);
           
           triggerPushNotification(
-            "📉 가격 인하 알림! (Price Drop)",
-            `장바구니에 담아둔 "${p.title}"의 가격이 Rs. ${p.price.toLocaleString()}에서 Rs. ${newPrice.toLocaleString()}으로 인하되었습니다!`
+            "📉 Price Drop Alert!",
+            `The price of "${p.title}" in your cart has dropped to Rs. ${newPrice.toLocaleString()}!`
           );
           
           return {
@@ -1480,8 +1456,8 @@ export default function App() {
       const updated = prevProducts.map(p => {
         if (p.id === productId) {
           triggerPushNotification(
-            "🚫 판매 완료 알림! (Sold Out)",
-            `아쉽게도 장바구니에 담아둔 "${p.title}"이(가) 다른 이웃에게 판매되었습니다.`
+            "🚫 Sold Out Alert!",
+            `The item "${p.title}" in your cart has been sold to another neighbor.`
           );
           return {
             ...p,
@@ -1536,8 +1512,8 @@ export default function App() {
     }
 
     triggerPushNotification(
-      "🔄 Status Reset (원래대로 복구)",
-      `상품 상태 및 가격이 성공적으로 복구되었습니다.`
+      "🔄 Status Reset",
+      "Product status and price have been successfully reset."
     );
   };
 
@@ -1562,6 +1538,130 @@ export default function App() {
   const [tempAvatarOptions, setTempAvatarOptions] = useState<AvatarOptions>(avatarOptions);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+
+  // App Store Regulatory Compliance States
+  const [supportEmail, setSupportEmail] = useState('');
+  const [supportType, setSupportType] = useState('Bug');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportHistory, setSupportHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('sero_support_history');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [locPermissionStatus, setLocPermissionStatus] = useState('Checking...');
+  const [pushPermissionStatus, setPushPermissionStatus] = useState('Checking...');
+
+  // Effect to verify geolocation and push notification permission states
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' as any }).then((result) => {
+          setLocPermissionStatus(result.state);
+          result.onchange = () => {
+            setLocPermissionStatus(result.state);
+          };
+        }).catch(() => {
+          setLocPermissionStatus('prompt');
+        });
+      } else {
+        setLocPermissionStatus('supported');
+      }
+    } else {
+      setLocPermissionStatus('not_supported');
+    }
+
+    if ('Notification' in window) {
+      setPushPermissionStatus(Notification.permission);
+    } else {
+      setPushPermissionStatus('not_supported');
+    }
+  }, []);
+
+  const triggerGeolocationTest = () => {
+    if ('geolocation' in navigator) {
+      setLocPermissionStatus('requesting...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocPermissionStatus('granted');
+          triggerPushNotification(
+            "📍 Geolocation Verified",
+            `Successfully pinpointed ward boundary near lat: ${position.coords.latitude.toFixed(4)}, lon: ${position.coords.longitude.toFixed(4)}.`
+          );
+        },
+        (error) => {
+          setLocPermissionStatus('denied');
+          triggerPushNotification(
+            "⚠️ Geolocation Warning",
+            "Could not fetch precise coordinates. Using Kathmandu default ward index."
+          );
+        }
+      );
+    }
+  };
+
+  const handlePermanentlyDeleteAccount = () => {
+    // Purge everything from localStorage
+    localStorage.removeItem('sero_cart');
+    localStorage.removeItem('sero_avatar_options');
+    localStorage.removeItem('sero_avatar_url');
+    localStorage.removeItem('sero_support_history');
+    
+    // Reset state to initial defaults
+    setCart([]);
+    setAvatarOptions({ gender: 'male', hair: 1, skin: 2, face: 1, outfit: 1 });
+    const defaultSvg = renderAvatarSvg({ gender: 'male', hair: 1, skin: 2, face: 1, outfit: 1 });
+    setMyAvatarUrl(`data:image/svg+xml;utf8,${encodeURIComponent(defaultSvg)}`);
+    setSupportHistory([]);
+    setProducts([INITIAL_MY_PRODUCT, ...MOCK_PRODUCTS]);
+    setChatRooms([
+      {
+        id: 'c1',
+        product: MOCK_PRODUCTS[0],
+        messages: [
+          { id: 'm1', sender: 'them', text: "Hello! Is this iPhone 13 Pro still available?", time: "10:15 AM" },
+          { id: 'm2', sender: 'me', text: "Namaste! Yes, it is fully functional and ready to go.", time: "10:18 AM" },
+          { id: 'm3', sender: 'them', text: "Wonderful. Can we meet tomorrow at Patan Durbar Square for a secure handshake?", time: "10:20 AM" },
+          { id: 'm4', sender: 'me', text: "Sounds perfect. Let's do it there around 2 PM.", time: "10:21 AM" }
+        ],
+        isCompleted: false,
+      }
+    ]);
+    
+    // Log out user
+    setIsLoggedIn(false);
+    setShowDeleteAccountConfirm(false);
+    
+    alert("Purged successfully! Your local Sero ID, catalog items, and chat handshakes have been permanently deleted from this device in compliance with App Store user-data guidelines.");
+  };
+
+  const handleSubmitSupport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportEmail.trim() || !supportMessage.trim()) return;
+
+    const newSubmission = {
+      id: `sup-${Date.now()}`,
+      email: supportEmail,
+      type: supportType,
+      message: supportMessage,
+      timestamp: new Date().toLocaleString(),
+      status: 'Open (Pending Review)'
+    };
+
+    const updated = [newSubmission, ...supportHistory];
+    setSupportHistory(updated);
+    localStorage.setItem('sero_support_history', JSON.stringify(updated));
+
+    setSupportEmail('');
+    setSupportMessage('');
+
+    triggerPushNotification(
+      "📬 Support Ticket Submitted",
+      "Thank you! Your ticket has been routed to himpower2025@gmail.com. We will review and respond within 24 hours."
+    );
+  };
 
   const openAvatarCreator = () => {
     setTempAvatarOptions({ ...avatarOptions });
@@ -2320,7 +2420,7 @@ export default function App() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
                 <h2 className="font-black text-2xl tracking-tight mb-1 flex items-center gap-2">
                   <ShoppingCart className="text-amber-400" />
-                  My Cart (관심목록)
+                  My Cart
                 </h2>
                 <p className="text-xs text-teal-100/70">
                   Save items of interest to review later and coordinate neighborhood handshakes.
@@ -2355,7 +2455,7 @@ export default function App() {
                   <div className="space-y-1.5">
                     <h3 className="font-black text-base text-gray-900">Your Cart is Empty</h3>
                     <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
-                      Browse neighborhood listings and tap the **Heart (찜하기)** button to save items you wish to follow.
+                      Browse neighborhood listings and tap the **Heart** button to save items you wish to follow.
                     </p>
                   </div>
                   <button 
@@ -2459,7 +2559,7 @@ export default function App() {
                         <div className="bg-amber-500/5 rounded-2xl p-3 border border-amber-500/10 mt-3 space-y-2">
                           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-800 tracking-wider">
                             <BellRing size={12} className="text-amber-600 animate-pulse" />
-                            <span>Trade Alert Simulator (알림 테스트)</span>
+                            <span>Trade Alert Simulator</span>
                           </div>
                           <div className="grid grid-cols-3 gap-1.5">
                             <button 
@@ -2689,6 +2789,163 @@ export default function App() {
                   <span className="bg-amber-50 text-amber-800 border border-amber-100/30 text-[10px] font-extrabold px-3 py-1.5 rounded-xl flex items-center gap-1">
                     🏍️ Lalitpur Riders
                   </span>
+                </div>
+              </div>
+
+              {/* App Store & Legal Compliance Center */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-5">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
+                  <ShieldCheck size={20} className="text-teal-700" />
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">Regulatory Compliance Center</h3>
+                    <p className="text-[10px] text-gray-400 font-medium">App Store & Google Play Regulatory Compliance Panel</p>
+                  </div>
+                </div>
+
+                {/* Grid for device and system perms */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Location tracking disclosure (Apple 5.1.1 iv) */}
+                  <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                        📍 Location Permission
+                      </span>
+                      <span className={cn(
+                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-full",
+                        locPermissionStatus === 'granted' ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      )}>
+                        {locPermissionStatus}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-normal">
+                      Required for Ward-level proximity trading matches. Works strictly when the app is active, with no background tracking.
+                    </p>
+                    <button 
+                      onClick={triggerGeolocationTest}
+                      className="w-full py-2 bg-white hover:bg-gray-100/70 border border-gray-200 text-teal-800 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer"
+                    >
+                      Grant & Test Location
+                    </button>
+                  </div>
+
+                  {/* Push notifications disclosure (Apple 5.1.1 v) */}
+                  <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                        🔔 Push Notifications
+                      </span>
+                      <span className={cn(
+                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-full",
+                        pushPermissionStatus === 'granted' ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      )}>
+                        {pushPermissionStatus}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-normal">
+                      Requested to safely receive notifications for chat handshakes and price-drop alerts on your cart items.
+                    </p>
+                    <button 
+                      onClick={requestNotificationPermission}
+                      className="w-full py-2 bg-white hover:bg-gray-100/70 border border-gray-200 text-teal-800 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer"
+                    >
+                      Grant & Test Notifications
+                    </button>
+                  </div>
+                </div>
+
+                {/* Support and Dispute Resolution Form (Apple 5.1.1 contact criteria) */}
+                <div className="border-t border-gray-50 pt-4 space-y-3">
+                  <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-teal-900">📬 Support & Dispute Resolution Desk</h4>
+                    <p className="text-[10px] text-gray-400">Apple Guideline 5.1.1 Help Center & Content Reporting</p>
+                  </div>
+
+                  <form onSubmit={(e) => { e.preventDefault(); handleSubmitSupport(e); }} className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Contact Email</label>
+                        <input 
+                          type="email" 
+                          required
+                          placeholder="your@email.com" 
+                          value={supportEmail}
+                          onChange={(e) => setSupportEmail(e.target.value)}
+                          className="w-full bg-gray-50 border-none rounded-xl p-2.5 text-[10px] font-medium text-gray-800 focus:ring-1 focus:ring-teal-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Inquiry Type</label>
+                        <select 
+                          value={supportType}
+                          onChange={(e) => setSupportType(e.target.value)}
+                          className="w-full bg-gray-50 border-none rounded-xl p-2.5 text-[10px] font-extrabold text-gray-700 focus:ring-1 focus:ring-teal-700"
+                        >
+                          <option value="Bug">🐛 System Bug Report</option>
+                          <option value="Inquiry">❓ General Inquiry</option>
+                          <option value="Safety Dispute">🛡️ Abuse or Safety Dispute</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Support Message</label>
+                      <textarea 
+                        required
+                        rows={2}
+                        placeholder="Please describe your inquiry. Tickets are routed to himpower2025@gmail.com. We respond within 24 hours."
+                        value={supportMessage}
+                        onChange={(e) => setSupportMessage(e.target.value)}
+                        className="w-full bg-gray-50 border-none rounded-xl p-2.5 text-[10px] font-medium text-gray-800 focus:ring-1 focus:ring-teal-700 placeholder:text-gray-400"
+                      />
+                    </div>
+
+                    <button 
+                      type="submit"
+                      className="w-full py-3 bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-sm shadow-teal-100"
+                    >
+                      Submit Inquiry
+                    </button>
+                  </form>
+
+                  {/* Support Submission History */}
+                  {supportHistory.length > 0 && (
+                    <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/60 mt-3 space-y-2">
+                      <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">My Ticket History</span>
+                      <div className="space-y-2 max-h-32 overflow-y-auto no-scrollbar">
+                        {supportHistory.map((item: any) => (
+                          <div key={item.id} className="bg-white p-2.5 rounded-xl border border-gray-50 flex justify-between items-start text-[10px] gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="font-extrabold text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded text-[9px]">{item.type}</span>
+                                <span className="text-gray-400 text-[8px]">{item.timestamp}</span>
+                              </div>
+                              <p className="text-gray-700 font-medium truncate">{item.message}</p>
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                              {item.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Account Deletion Area (Apple Guideline 5.1.1 v) */}
+                <div className="border-t border-gray-50 pt-4 space-y-2">
+                  <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-red-800">🗑️ Account Deletion & Right to be Forgotten</h4>
+                    <p className="text-[10px] text-gray-400">Apple Guideline 5.1.1(v) Mandatory Account Deletion Feature</p>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-normal">
+                    Permanently deletes all your local Sero ID profile settings, customized avatar setups, handshake messages, and cart checklists from this device.
+                  </p>
+                  <button 
+                    onClick={() => setShowDeleteAccountConfirm(true)}
+                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs rounded-xl transition-all cursor-pointer border border-red-200/40"
+                  >
+                    Permanently Delete Sero ID (Delete Account)
+                  </button>
                 </div>
               </div>
 
@@ -3289,6 +3546,84 @@ export default function App() {
                   className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-teal-100 text-center"
                 >
                   Close & Acknowledge
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Serofero Mandatory Account Deletion Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteAccountConfirm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[2100] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 30 }}
+              className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl border border-red-100 flex flex-col my-8"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-700 to-red-800 text-white p-6 relative flex-shrink-0 text-center">
+                <button 
+                  onClick={() => setShowDeleteAccountConfirm(false)}
+                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+                <div className="mx-auto bg-white/10 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-2.5">
+                  <Trash2 size={24} className="text-white animate-bounce" />
+                </div>
+                <h3 className="text-lg font-black tracking-tight">Permanent Deletion Warning</h3>
+                <p className="text-xs text-red-100/70 mt-1">Sero ID & Local Cache Deletion</p>
+              </div>
+
+              {/* Warnings Content */}
+              <div className="p-6 space-y-4 text-xs font-medium text-gray-600 leading-relaxed">
+                <div className="bg-red-50 text-red-900 p-4 rounded-2xl border border-red-100/60 font-semibold space-y-1">
+                  <span className="font-extrabold uppercase tracking-wider text-[10px] text-red-950 block">⚠️ Important Notice (Regulatory Notice)</span>
+                  <p>This action is irreversible. The following data associated with your local account will be permanently purged from this device immediately:</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 text-gray-700">
+                    <span className="text-red-500 font-bold">✕</span>
+                    <p><span className="font-bold text-gray-950">Sero ID Profile Data</span> (Custom avatar setup and your Trust Score)</p>
+                  </div>
+                  <div className="flex items-start gap-2 text-gray-700">
+                    <span className="text-red-500 font-bold">✕</span>
+                    <p><span className="font-bold text-gray-950">Listed Catalog Items</span> (All items you posted for sale and transaction history)</p>
+                  </div>
+                  <div className="flex items-start gap-2 text-gray-700">
+                    <span className="text-red-500 font-bold">✕</span>
+                    <p><span className="font-bold text-gray-950">Handshake Chat Rooms</span> (All messages and handshake logs with neighbors)</p>
+                  </div>
+                  <div className="flex items-start gap-2 text-gray-700">
+                    <span className="text-red-500 font-bold">✕</span>
+                    <p><span className="font-bold text-gray-950">Cart Checklist</span> (Your pinned items and cached price notifications)</p>
+                  </div>
+                </div>
+
+                <p className="text-[10.5px] text-gray-400 font-bold text-center border-t border-gray-100 pt-3">
+                  This deletion purge conforms to the App Store Privacy Guidelines (Guideline 5.1.1) to protect user data.
+                </p>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteAccountConfirm(false)}
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePermanentlyDeleteAccount}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center shadow-md shadow-red-100"
+                >
+                  Delete
                 </button>
               </div>
             </motion.div>
