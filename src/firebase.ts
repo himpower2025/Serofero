@@ -23,12 +23,12 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig: FirebaseOptions = {
-  apiKey: 'REPLACE_WITH_FIREBASE_API_KEY',
-  authDomain: 'REPLACE_WITH_PROJECT_ID.firebaseapp.com',
-  projectId: 'REPLACE_WITH_PROJECT_ID',
-  storageBucket: 'REPLACE_WITH_PROJECT_ID.appspot.com',
-  messagingSenderId: 'REPLACE_WITH_SENDER_ID',
-  appId: 'REPLACE_WITH_APP_ID',
+  apiKey: import.meta.env.AIzaSyDPNyfK-ptPHftrwEQz3TOEkwfj8vGp3ZM,
+  authDomain: import.meta.env.serofero-6651b.firebaseapp.com,
+  projectId: import.meta.env.serofero-6651b,
+  storageBucket: import.meta.env.serofero-6651b.firebasestorage.app,
+  messagingSenderId: import.meta.env.1014822279122,
+  appId: import.meta.env.1:1014822279122:web:90f885570e25680cecda0b,
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);
