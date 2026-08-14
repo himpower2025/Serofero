@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Serofero</string>
+    <string name="title_activity_main">Serofero</string>
+    <string name="package_name">com.himpower.serofero</string>
+    <string name="custom_url_scheme">com.himpower.serofero</string>
+</resources>

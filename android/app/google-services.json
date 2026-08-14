@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1014822279122",
+    "project_id": "serofero-6651b",
+    "storage_bucket": "serofero-6651b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014822279122:android:da7fae3f90f3d746ecda0b",
+        "android_client_info": {
+          "package_name": "com.himpower.serofero"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFDt9uPRQjP-XDW6Xm3eMw_J4DS_P91Zo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

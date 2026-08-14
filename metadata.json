@@ -1,0 +1,7 @@
+{
+  "name": "Serofero - Everything in Your Vicinity",
+  "description": "A modern community marketplace for Nepal, developed by Himpower Pvt. Ltd. Built on the essence of 'Serofero' (your surroundings) for safe and easy local trade.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
