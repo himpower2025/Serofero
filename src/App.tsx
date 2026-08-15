@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Bell, 
@@ -23,6 +23,7 @@ import {
   Info,
   X,
   Camera,
+  Images,
   Tag,
   Trash2,
   Award,
@@ -864,40 +865,71 @@ const SellScreen = ({
   const [allowOffers, setAllowOffers] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [showPhotoSourceMenu, setShowPhotoSourceMenu] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddPhoto = async () => {
-    if (photos.length >= 4 || isUploadingPhoto) return;
+  const uploadPhotoBlob = async (blob: Blob) => {
+    setIsUploadingPhoto(true);
     setPhotoError('');
     try {
-      // On native iOS/Android, CameraSource.Prompt shows a real native
-      // action sheet — reliable there. On web, that same option is drawn
-      // as a custom on-page overlay that can render invisibly behind this
-      // modal's own overlay. So on web we go straight to CameraSource.Photos,
-      // which the web implementation handles via a plain, reliable file picker.
-      const isNative = Capacitor.isNativePlatform();
+      const downloadUrl = await uploadListingPhoto(sellerId, blob);
+      setPhotos((prev) => [...prev, downloadUrl]);
+    } catch (err) {
+      console.error('[Photo] Upload failed:', err);
+      setPhotoError('Could not upload photo — check your connection and that Firebase Storage is configured (see FIREBASE_SETUP.md).');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // Entry point for the "Add" tile.
+  const handleAddPhotoClick = () => {
+    if (photos.length >= 4 || isUploadingPhoto) return;
+    setPhotoError('');
+    if (Capacitor.isNativePlatform()) {
+      pickPhotoNative();
+    } else {
+      // Web (desktop AND mobile browsers): show our own lightweight
+      // "Take Photo / Choose from Gallery" menu instead of the Capacitor
+      // plugin's web action-sheet. Two reasons: (1) that overlay can end up
+      // rendered behind this modal's own overlay on desktop, invisible; and
+      // (2) on mobile browsers (notably iOS Safari), opening a file picker
+      // only works if triggered *synchronously* inside a real click handler
+      // — the plugin's internal async steps break that chain, so the picker
+      // silently never opens. Our hidden <input type="file"> below is
+      // clicked directly inside a synchronous onClick, which stays reliable
+      // on both.
+      setShowPhotoSourceMenu(true);
+    }
+  };
+
+  const pickPhotoNative = async () => {
+    try {
+      // Real native action sheet on iOS/Android — reliable there.
       const photo = await CapacitorCamera.getPhoto({
         quality: 80,
         resultType: CameraResultType.DataUrl,
-        source: isNative ? CameraSource.Prompt : CameraSource.Photos,
+        source: CameraSource.Prompt,
         promptLabelHeader: 'Add Photo',
         promptLabelPhoto: 'Choose from Gallery',
         promptLabelPicture: 'Take Photo',
       });
       if (!photo.dataUrl) return;
-
-      setIsUploadingPhoto(true);
       const blob = await dataUrlToBlob(photo.dataUrl);
-      const downloadUrl = await uploadListingPhoto(sellerId, blob);
-      setPhotos((prev) => [...prev, downloadUrl]);
+      await uploadPhotoBlob(blob);
     } catch (err: any) {
-      // User cancelling the picker throws too — don't show an error for that.
       if (err?.message !== 'User cancelled photos app') {
         console.error('[Photo] Upload failed:', err);
         setPhotoError('Could not upload photo — check your connection and that Firebase Storage is configured (see FIREBASE_SETUP.md).');
       }
-    } finally {
-      setIsUploadingPhoto(false);
     }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so picking the same file again still fires onChange
+    if (file) uploadPhotoBlob(file);
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -984,7 +1016,7 @@ const SellScreen = ({
               ))}
               {photos.length < 4 && (
                 <button 
-                  onClick={handleAddPhoto}
+                  onClick={handleAddPhotoClick}
                   disabled={isUploadingPhoto}
                   className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-500 hover:text-teal-600 transition-all disabled:opacity-60"
                 >
@@ -1004,6 +1036,60 @@ const SellScreen = ({
             </div>
             {photoError && (
               <p className="mt-2 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{photoError}</p>
+            )}
+
+            {/* Hidden native file inputs — clicked synchronously from the
+                choice menu buttons below so mobile browsers (iOS Safari in
+                particular) treat it as a direct user gesture and actually
+                open the picker. `capture="environment"` opens the camera
+                directly on mobile; omitting it opens the photo library/files. */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileInputChange}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileInputChange}
+            />
+
+            {showPhotoSourceMenu && (
+              <div
+                className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
+                onClick={() => setShowPhotoSourceMenu(false)}
+              >
+                <div
+                  className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:w-80 p-3 space-y-1 mb-0 sm:mb-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => { setShowPhotoSourceMenu(false); cameraInputRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl hover:bg-gray-50 text-left cursor-pointer"
+                  >
+                    <Camera size={20} className="text-teal-700 flex-shrink-0" />
+                    <span className="font-bold text-sm text-gray-800">Take Photo</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowPhotoSourceMenu(false); galleryInputRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl hover:bg-gray-50 text-left cursor-pointer"
+                  >
+                    <Images size={20} className="text-teal-700 flex-shrink-0" />
+                    <span className="font-bold text-sm text-gray-800">Choose from Gallery</span>
+                  </button>
+                  <button
+                    onClick={() => setShowPhotoSourceMenu(false)}
+                    className="w-full p-4 rounded-2xl text-center font-bold text-sm text-gray-400 hover:bg-gray-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </section>
 
@@ -2003,7 +2089,8 @@ export default function App() {
   const triggerPushNotification = (title: string, body: string) => {
     // 1. Show elegant in-app notification banner
     setNotification({ title, body });
-    // Auto-dismiss after 5s
+    // Auto-dismiss after 5s — previously this banner had no timer at all and
+    // stayed on screen indefinitely until the user manually clicked the X.
     setTimeout(() => {
       setNotification((current) => (current?.title === title && current?.body === body ? null : current));
     }, 5000);
@@ -2273,7 +2360,7 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             <Search size={22} className="md:hidden opacity-80 cursor-pointer hover:opacity-100" />
-              <Bell size={22} className="opacity-80 cursor-pointer hover:opacity-100" />             
+            <Bell size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
             <Menu size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
           </div>
         </div>
