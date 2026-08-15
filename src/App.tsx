@@ -1511,13 +1511,13 @@ export const ME_USER = {
   id: 'me',
   name: 'Himpower Neighbor',
   avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Himpower',
-  trustScore: 96,
+  trustScore: 0,
   location: 'New Baneshwor, KTM',
-  joinedDate: 'Jan 2024',
-  communities: ['KTM Techies', 'Lalitpur Riders'],
-  mutualConnections: 12,
-  dealsCount: 18,
-  feedback: { punctual: 15, polite: 18, asDescribed: 14, fast: 16 }
+  joinedDate: '',
+  communities: [] as string[],
+  mutualConnections: 0,
+  dealsCount: 0,
+  feedback: { punctual: 0, polite: 0, asDescribed: 0, fast: 0 }
 };
 
 const INITIAL_MY_PRODUCT: Product = {
@@ -1554,6 +1554,9 @@ export default function App() {
         ME_USER.id = user.uid;
         ME_USER.name = user.displayName || ME_USER.name;
         ME_USER.avatarUrl = user.photoURL || ME_USER.avatarUrl;
+        if (user.metadata.creationTime) {
+          ME_USER.joinedDate = new Date(user.metadata.creationTime).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        }
       }
     });
     return () => unsubscribe();
@@ -2006,7 +2009,7 @@ export default function App() {
     localStorage.setItem('sero_avatar_options', JSON.stringify(avatarOptions));
 
     setProducts(prev => prev.map(p => {
-      if (p.seller.id === 'me') {
+      if (p.seller.id === ME_USER.id) {
         return {
           ...p,
           seller: {
@@ -2160,7 +2163,7 @@ export default function App() {
     else if (buyerAvg < 3.0) buyerScoreChange = -4.0;
 
     if (surveyProduct && surveySeller) {
-      const isMeSeller = surveyProduct.seller.id === 'me';
+      const isMeSeller = surveyProduct.seller.id === ME_USER.id;
 
       // 3. Update products and seller trust metrics
       setProducts(prevProducts => {
@@ -2940,13 +2943,13 @@ export default function App() {
                   <span className="text-xl block mb-1">🏷️</span>
                   <span className="text-xs text-gray-400 font-bold block">Listings</span>
                   <span className="text-lg font-black text-teal-900 mt-1 block">
-                    {products.filter(p => p.seller.id === 'me').length} Live
+                    {products.filter(p => p.seller.id === ME_USER.id).length} Live
                   </span>
                 </div>
                 <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center">
                   <span className="text-xl block mb-1">🌱</span>
                   <span className="text-xs text-gray-400 font-bold block">Circles</span>
-                  <span className="text-lg font-black text-teal-900 mt-1 block">2 Joined</span>
+                  <span className="text-lg font-black text-teal-900 mt-1 block">{ME_USER.communities.length} Joined</span>
                 </div>
               </div>
 
@@ -3019,13 +3022,13 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gray-400">My Listings</h3>
                   <span className="text-[10px] text-gray-400 font-extrabold">
-                    {products.filter(p => p.seller.id === 'me').length} Items
+                    {products.filter(p => p.seller.id === ME_USER.id).length} Items
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   {(() => {
-                    const myUploadedListings = products.filter(p => p.seller.id === 'me');
+                    const myUploadedListings = products.filter(p => p.seller.id === ME_USER.id);
                     if (myUploadedListings.length === 0) {
                       return (
                         <div className="text-center py-8 bg-gray-50/50 rounded-2xl border border-dashed border-gray-100">
@@ -3293,7 +3296,7 @@ export default function App() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsSelling(true)}
-        className="fixed bottom-28 right-6 md:right-12 w-16 h-16 bg-teal-700 text-white rounded-2xl shadow-2xl shadow-teal-200 flex items-center justify-center z-30 border-4 border-white"
+        className="fixed bottom-24 right-4 md:right-12 w-16 h-16 bg-teal-700 text-white rounded-2xl shadow-2xl shadow-teal-200 flex items-center justify-center z-30 border-4 border-white"
       >
         <Plus size={32} />
       </motion.button>
@@ -3434,8 +3437,8 @@ export default function App() {
 
               {/* Multi-step survey wizard form */}
               <SurveyWizard 
-                sellerName={surveyProduct.seller.id === 'me' ? ME_USER.name : surveySeller.name}
-                buyerName={surveyProduct.seller.id === 'me' ? "Rajesh Kaji" : ME_USER.name}
+                sellerName={surveyProduct.seller.id === ME_USER.id ? ME_USER.name : surveySeller.name}
+                buyerName={surveyProduct.seller.id === ME_USER.id ? "Rajesh Kaji" : ME_USER.name}
                 onSubmit={(buyerRatings, sellerRatings) => {
                   handleCompleteSurvey(buyerRatings, sellerRatings);
                 }}
