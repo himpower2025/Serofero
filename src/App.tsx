@@ -869,12 +869,16 @@ const SellScreen = ({
     if (photos.length >= 4 || isUploadingPhoto) return;
     setPhotoError('');
     try {
-      // Opens the native camera/gallery picker on iOS & Android, and a file
-      // picker in the browser — same call works on every platform.
+      // On native iOS/Android, CameraSource.Prompt shows a real native
+      // action sheet — reliable there. On web, that same option is drawn
+      // as a custom on-page overlay that can render invisibly behind this
+      // modal's own overlay. So on web we go straight to CameraSource.Photos,
+      // which the web implementation handles via a plain, reliable file picker.
+      const isNative = Capacitor.isNativePlatform();
       const photo = await CapacitorCamera.getPhoto({
         quality: 80,
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Prompt,
+        source: isNative ? CameraSource.Prompt : CameraSource.Photos,
         promptLabelHeader: 'Add Photo',
         promptLabelPhoto: 'Choose from Gallery',
         promptLabelPicture: 'Take Photo',
@@ -1999,7 +2003,11 @@ export default function App() {
   const triggerPushNotification = (title: string, body: string) => {
     // 1. Show elegant in-app notification banner
     setNotification({ title, body });
-    
+    // Auto-dismiss after 5s
+    setTimeout(() => {
+      setNotification((current) => (current?.title === title && current?.body === body ? null : current));
+    }, 5000);
+
     // 2. Try native browser notification if allowed
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
@@ -2265,10 +2273,7 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             <Search size={22} className="md:hidden opacity-80 cursor-pointer hover:opacity-100" />
-            <div className="relative">
-              <Bell size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-teal-800" />
-            </div>
+              <Bell size={22} className="opacity-80 cursor-pointer hover:opacity-100" />             
             <Menu size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
           </div>
         </div>
