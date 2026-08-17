@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Serofero Cloud Storage rules.
+// Deploy with:  firebase deploy --only storage
+//
+// Listing photos live at  listings/{sellerId}/{filename}.
+// Anyone signed in can view them (they appear in the public feed); only the
+// owner of that folder can upload or delete, and uploads are capped at 8 MB
+// and restricted to images so the bucket cannot be used as free file hosting.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /listings/{sellerId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == sellerId
+                   && (request.resource == null
+                       || (request.resource.size < 8 * 1024 * 1024
+                           && request.resource.contentType.matches('image/.*')));
+    }
+  }
+}

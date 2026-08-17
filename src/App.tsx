@@ -42,13 +42,20 @@ import { twMerge } from 'tailwind-merge';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { uploadListingPhoto, dataUrlToBlob } from './services/storageService';
 import { Product } from './types';
-import { MOCK_PRODUCTS } from './constants';
-import { auth, googleProvider } from './firebase';
-import { onAuthStateChanged, signInWithPopup, signInWithCredential, GoogleAuthProvider, signOut, deleteUser, type User as FirebaseUser } from 'firebase/auth';
+import { auth, googleProvider, appleProvider } from './firebase';
+import { onAuthStateChanged, signInWithPopup, signInWithCredential, GoogleAuthProvider, OAuthProvider, signOut, deleteUser, type User as FirebaseUser } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { subscribeToProducts, createProduct, deleteAllListingsBySeller } from './services/productsService';
 import {
+  submitSupportTicket,
+  submitListingReport,
+  subscribeToMyTickets,
+  deleteMyTickets,
+  type SupportTicket,
+} from './services/supportService';
+import {
+  deleteAllChatsForUser,
   subscribeToMyChats,
   subscribeToChatMessages,
   getOrCreateChatRoom,
@@ -1198,15 +1205,91 @@ const SellScreen = ({
 
 // --- Login Screen ---
 
+// A single component for both legal documents. The full, authoritative text
+// lives at LEGAL_BASE_URL (the same public URL given to App Store Connect and
+// the Play Console), so the app can never drift out of sync with the version
+// the stores reviewed.
+const LegalModal = ({
+  eyebrow,
+  title,
+  summary,
+  url,
+  onClose,
+}: {
+  eyebrow: string;
+  title: string;
+  summary: string;
+  url: string;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2000] flex items-center justify-center p-4 overflow-y-auto">
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0, y: 30 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.95, opacity: 0, y: 30 }}
+      className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-100 flex flex-col my-8 max-h-[85vh]"
+    >
+      <div className="bg-gradient-to-r from-teal-800 to-teal-900 text-white p-6 relative flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+        <div className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-teal-300 mb-1">
+          <Lock size={14} className="text-amber-400" />
+          <span>{eyebrow}</span>
+        </div>
+        <h3 className="text-xl font-black tracking-tight mt-1">{title}</h3>
+      </div>
+
+      <div className="flex-grow overflow-y-auto p-6 space-y-4 text-gray-600 text-xs leading-relaxed font-medium">
+        <p>{summary}</p>
+        <p className="text-[11px] text-gray-400">
+          This is a summary. Please read the full document for the complete terms.
+        </p>
+      </div>
+
+      <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+        >
+          Close
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex-1 py-3 bg-teal-800 hover:bg-teal-900 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
+        >
+          Read in full
+        </a>
+      </div>
+    </motion.div>
+  </div>
+);
+
+// Publicly reachable copies of the legal documents. App Store Connect and the
+// Play Console both require a public URL (not an in-app-only screen), and the
+// same links are surfaced in-app so users can always reach them.
+export const LEGAL_BASE_URL = 'https://serofero-pink.vercel.app';
+
 const LoginScreen = ({
   onLogin,
+  onAppleLogin,
   isSigningIn,
   error,
 }: {
   onLogin: () => void;
+  onAppleLogin: () => void;
   isSigningIn: boolean;
   error: string;
 }) => {
+  // Sign in with Apple is required on iOS (Guideline 4.8) and works fine in the
+  // browser too; it is not offered on Android, where Apple has no presence.
+  const showAppleLogin = Capacitor.getPlatform() !== 'android';
   return (
     <div className="fixed inset-0 bg-teal-800 z-[100] flex flex-col items-center justify-center p-8 text-white">
       <div className="mb-12 text-center">
@@ -1215,7 +1298,6 @@ const LoginScreen = ({
         </div>
         <h1 className="text-4xl font-black mb-2 tracking-tighter">Serofero</h1>
         <p className="text-teal-100/70 text-sm font-medium">Everything in your vicinity</p>
-        <p className="mt-2 text-[10px] text-teal-100/40 italic">Verified badges are only for Google/Phone logins</p>
       </div>
       
       <div className="w-full space-y-4 max-w-xs">
@@ -1224,13 +1306,27 @@ const LoginScreen = ({
           disabled={isSigningIn}
           className="w-full bg-white text-teal-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-teal-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+          <svg viewBox="0 0 48 48" className="w-5 h-5" aria-hidden="true">
+            <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/>
+            <path fill="#4CAF50" d="M24 44c5.2 0 9.8-2 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+            <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.2 5.6l6.2 5.2C36.9 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+          </svg>
           {isSigningIn ? 'Signing in…' : 'Continue with Google'}
         </button>
-        
-        <button className="w-full bg-teal-700 text-white font-bold py-4 rounded-2xl border border-teal-600 hover:bg-teal-600 transition-colors">
-          Continue with Phone
-        </button>
+
+        {showAppleLogin && (
+          <button
+            onClick={onAppleLogin}
+            disabled={isSigningIn}
+            className="w-full bg-black text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <svg viewBox="0 0 384 512" className="w-4 h-4 fill-current" aria-hidden="true">
+              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+            </svg>
+            {isSigningIn ? 'Signing in…' : 'Continue with Apple'}
+          </button>
+        )}
 
         {error && (
           <p className="text-center text-xs font-bold text-rose-300 bg-rose-950/30 border border-rose-400/20 rounded-xl py-2.5 px-3">
@@ -1245,7 +1341,15 @@ const LoginScreen = ({
       </div>
       
       <p className="mt-8 text-[10px] text-teal-100/50 text-center leading-relaxed">
-        By continuing, you agree to our Terms of Service <br /> and Privacy Policy.
+        By continuing, you agree to our{' '}
+        <a href={`${LEGAL_BASE_URL}/terms.html`} target="_blank" rel="noreferrer" className="underline font-bold text-teal-100/80">
+          Terms of Service
+        </a>
+        <br /> and{' '}
+        <a href={`${LEGAL_BASE_URL}/privacy.html`} target="_blank" rel="noreferrer" className="underline font-bold text-teal-100/80">
+          Privacy Policy
+        </a>
+        .
       </p>
     </div>
   );
@@ -1507,33 +1611,20 @@ export const renderAvatarSvg = (options: AvatarOptions): string => {
 
 // --- Main App ---
 
+// The signed-in user's own profile. Every field here is a neutral default that
+// gets overwritten with the real account details by onAuthStateChanged — no
+// invented name, avatar or address is ever shown to a real user.
 export const ME_USER = {
   id: 'me',
-  name: 'Himpower Neighbor',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Himpower',
+  name: 'Neighbor',
+  avatarUrl: '',
   trustScore: 0,
-  location: 'New Baneshwor, KTM',
+  location: 'Nepal',
   joinedDate: '',
   communities: [] as string[],
   mutualConnections: 0,
   dealsCount: 0,
   feedback: { punctual: 0, polite: 0, asDescribed: 0, fast: 0 }
-};
-
-const INITIAL_MY_PRODUCT: Product = {
-  id: 'my-1',
-  title: 'Vintage Brass Singing Bowl',
-  price: 3500,
-  isNegotiable: true,
-  location: 'New Baneshwor, KTM',
-  category: 'Home',
-  imageUrl: 'https://picsum.photos/seed/bowl/600/600',
-  timeAgo: '1d ago',
-  likes: 8,
-  chats: 2,
-  offersCount: 1,
-  seller: ME_USER,
-  description: 'Beautiful hand-beaten brass singing bowl with wooden striker. Perfect for meditation and mindfulness. Excellent sound resonance.'
 };
 
 export default function App() {
@@ -1583,6 +1674,31 @@ export default function App() {
     } catch (err) {
       console.error('[Auth] Google sign-in failed:', err);
       setAuthError('Google sign-in failed — check that Firebase is configured (see FIREBASE_SETUP.md) and try again.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setAuthError('');
+    setIsSigningIn(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const result = await FirebaseAuthentication.signInWithApple({ skipNativeAuth: true });
+        const idToken = result.credential?.idToken;
+        if (!idToken) throw new Error('No identity token returned from Sign in with Apple.');
+        const provider = new OAuthProvider('apple.com');
+        const credential = provider.credential({
+          idToken,
+          rawNonce: result.credential?.nonce,
+        });
+        await signInWithCredential(auth, credential);
+      } else {
+        await signInWithPopup(auth, appleProvider);
+      }
+    } catch (err) {
+      console.error('[Auth] Apple sign-in failed:', err);
+      setAuthError('Sign in with Apple failed. Please try again, or continue with Google.');
     } finally {
       setIsSigningIn(false);
     }
@@ -1668,109 +1784,6 @@ export default function App() {
     }
   };
 
-  // Simulator to trigger Price Drop of a product
-  const simulatePriceDrop = (productId: string) => {
-    setProducts(prevProducts => {
-      const updated = prevProducts.map(p => {
-        if (p.id === productId) {
-          const originalPrice = p.originalPrice || p.price;
-          const newPrice = Math.round(p.price * 0.9);
-          
-          triggerPushNotification(
-            "📉 Price Drop Alert!",
-            `The price of "${p.title}" in your cart has dropped to Rs. ${newPrice.toLocaleString()}!`
-          );
-          
-          return {
-            ...p,
-            price: newPrice,
-            originalPrice: originalPrice
-          };
-        }
-        return p;
-      });
-      return updated;
-    });
-
-    if (selectedProduct && selectedProduct.id === productId) {
-      setSelectedProduct(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          price: Math.round(prev.price * 0.9),
-          originalPrice: prev.originalPrice || prev.price
-        };
-      });
-    }
-  };
-
-  // Simulator to trigger Sold status of a product
-  const simulateSoldOut = (productId: string) => {
-    setProducts(prevProducts => {
-      const updated = prevProducts.map(p => {
-        if (p.id === productId) {
-          triggerPushNotification(
-            "🚫 Sold Out Alert!",
-            `The item "${p.title}" in your cart has been sold to another neighbor.`
-          );
-          return {
-            ...p,
-            isSold: true
-          };
-        }
-        return p;
-      });
-      return updated;
-    });
-
-    if (selectedProduct && selectedProduct.id === productId) {
-      setSelectedProduct(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          isSold: true
-        };
-      });
-    }
-  };
-
-  // Reset simulator
-  const simulateResetProduct = (productId: string) => {
-    const originalProd = [INITIAL_MY_PRODUCT, ...MOCK_PRODUCTS].find(p => p.id === productId);
-    const fallbackPrice = originalProd ? originalProd.price : 1000;
-    
-    setProducts(prevProducts => {
-      return prevProducts.map(p => {
-        if (p.id === productId) {
-          return {
-            ...p,
-            price: fallbackPrice,
-            originalPrice: undefined,
-            isSold: false
-          };
-        }
-        return p;
-      });
-    });
-
-    if (selectedProduct && selectedProduct.id === productId) {
-      setSelectedProduct(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          price: fallbackPrice,
-          originalPrice: undefined,
-          isSold: false
-        };
-      });
-    }
-
-    triggerPushNotification(
-      "🔄 Status Reset",
-      "Product status and price have been successfully reset."
-    );
-  };
-
   // --- Avatar Creator States ---
   const [avatarOptions, setAvatarOptions] = useState<AvatarOptions>(() => {
     const saved = localStorage.getItem('sero_avatar_options');
@@ -1797,14 +1810,12 @@ export default function App() {
   const [supportEmail, setSupportEmail] = useState('');
   const [supportType, setSupportType] = useState('Bug');
   const [supportMessage, setSupportMessage] = useState('');
-  const [supportHistory, setSupportHistory] = useState<any[]>(() => {
-    const saved = localStorage.getItem('sero_support_history');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [];
-  });
+  const [supportHistory, setSupportHistory] = useState<SupportTicket[]>([]);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showSafetyGuide, setShowSafetyGuide] = useState(false);
   const [locPermissionStatus, setLocPermissionStatus] = useState('Checking...');
   const [pushPermissionStatus, setPushPermissionStatus] = useState('Checking...');
 
@@ -1818,6 +1829,20 @@ export default function App() {
     }
     return [];
   });
+
+  // My own support tickets / reports, live from Firestore.
+  useEffect(() => {
+    if (!currentUser) {
+      setSupportHistory([]);
+      return;
+    }
+    const unsubscribe = subscribeToMyTickets(
+      currentUser.uid,
+      (tickets) => setSupportHistory(tickets),
+      (error) => console.error('[Support] Could not load ticket history:', error)
+    );
+    return unsubscribe;
+  }, [currentUser]);
 
   // Effect to verify geolocation and push notification permission states
   useEffect(() => {
@@ -1868,93 +1893,109 @@ export default function App() {
   };
 
   const handlePermanentlyDeleteAccount = async () => {
-    // Purge everything from localStorage
+    if (isDeletingAccount) return;
+    setIsDeletingAccount(true);
+
+    // Apple Guideline 5.1.1(v) and Play's account-deletion policy both require
+    // that this erases the account and its data on the server, not just the
+    // local cache. Order matters: the Firestore writes must happen while the
+    // user is still authenticated, because the security rules check their uid.
+    let deletionWarning = '';
+    if (currentUser) {
+      try {
+        await deleteAllListingsBySeller(currentUser.uid);
+        await deleteAllChatsForUser(currentUser.uid);
+        await deleteMyTickets(currentUser.uid);
+        await deleteUser(currentUser);
+      } catch (err: any) {
+        console.error('[Auth] Full account deletion failed:', err);
+        if (err?.code === 'auth/requires-recent-login') {
+          deletionWarning =
+            ' For security, Firebase requires a recent sign-in before an account can be erased — please sign in again and retry within a few minutes.';
+        } else {
+          deletionWarning = ' Some data could not be removed — please contact support so we can finish the deletion.';
+        }
+      }
+    }
+
+    // Purge the local device copy
     localStorage.removeItem('sero_cart');
     localStorage.removeItem('sero_avatar_options');
     localStorage.removeItem('sero_avatar_url');
     localStorage.removeItem('sero_support_history');
     localStorage.removeItem('sero_blocked_sellers');
-    
-    // Reset state to initial defaults
+
     setCart([]);
     setBlockedSellers([]);
     setAvatarOptions({ gender: 'male', hair: 1, skin: 2, face: 1, outfit: 1 });
     const defaultSvg = renderAvatarSvg({ gender: 'male', hair: 1, skin: 2, face: 1, outfit: 1 });
     setMyAvatarUrl(`data:image/svg+xml;utf8,${encodeURIComponent(defaultSvg)}`);
     setSupportHistory([]);
-    setProducts([INITIAL_MY_PRODUCT, ...MOCK_PRODUCTS]);
+    setProducts([]);
     setActiveChatRoomId('');
 
-    // Apple Guideline 5.1.1(v) requires "delete account" to actually erase the
-    // account and its data — not just sign out / clear the local device cache.
-    let deletionWarning = '';
-    if (currentUser) {
-      try {
-        await deleteAllListingsBySeller(currentUser.uid);
-        await deleteUser(currentUser);
-      } catch (err: any) {
-        console.error('[Auth] Full account deletion failed:', err);
-        if (err?.code === 'auth/requires-recent-login') {
-          deletionWarning = ' Note: for security, Firebase requires a recent sign-in to fully delete your account — please log in again and retry within a few minutes to complete deletion.';
-        }
-        // Fall through to sign-out below regardless, so the device is at
-        // least clean even if the server-side account deletion needs a retry.
-      }
-    }
-
-    // Log out user
     handleSignOut();
     setShowDeleteAccountConfirm(false);
-    
-    alert("Purged successfully! Your Sero ID, listings, and local cache have been permanently deleted in compliance with App Store user-data guidelines." + deletionWarning);
+    setIsDeletingAccount(false);
+
+    alert(
+      'Your Serofero account, listings, chats and support tickets have been permanently deleted.' +
+        deletionWarning
+    );
   };
 
-  const handleSubmitSupport = (e: React.FormEvent) => {
+  const handleSubmitSupport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supportEmail.trim() || !supportMessage.trim()) return;
+    if (!supportEmail.trim() || !supportMessage.trim() || !currentUser) return;
 
-    const newSubmission = {
-      id: `sup-${Date.now()}`,
-      email: supportEmail,
-      type: supportType,
-      message: supportMessage,
-      timestamp: new Date().toLocaleString(),
-      status: 'Open (Pending Review)'
-    };
-
-    const updated = [newSubmission, ...supportHistory];
-    setSupportHistory(updated);
-    localStorage.setItem('sero_support_history', JSON.stringify(updated));
-
-    setSupportEmail('');
-    setSupportMessage('');
-
-    triggerPushNotification(
-      "📬 Support Ticket Submitted",
-      "Thank you! Your ticket has been routed to himpower2025@gmail.com. We will review and respond within 24 hours."
-    );
+    try {
+      await submitSupportTicket({
+        reporterId: currentUser.uid,
+        email: supportEmail,
+        type: supportType,
+        message: supportMessage,
+      });
+      setSupportEmail('');
+      setSupportMessage('');
+      triggerPushNotification(
+        "\ud83d\udcec Support Ticket Submitted",
+        "Your ticket has reached the Serofero support desk. We aim to respond within 2 business days."
+      );
+    } catch (err) {
+      console.error('[Support] Ticket submission failed:', err);
+      triggerPushNotification(
+        "\u26a0\ufe0f Ticket not sent",
+        "We could not submit your ticket. Check your connection and try again, or email support directly."
+      );
+    }
   };
 
-  // Reports a listing/seller for review. Routed through the same support-ticket
-  // pipeline so every report is auditable in "My Ticket History" — no report
-  // silently disappears.
-  const handleReportListing = (product: Product, reason: string) => {
-    const newSubmission = {
-      id: `rep-${Date.now()}`,
-      email: '(in-app report)',
-      type: 'Safety Dispute',
-      message: `Reported listing "${product.title}" (seller: ${product.seller.name}, id: ${product.seller.id}). Reason: ${reason}`,
-      timestamp: new Date().toLocaleString(),
-      status: 'Open (Pending Review)'
-    };
-    const updated = [newSubmission, ...supportHistory];
-    setSupportHistory(updated);
-    localStorage.setItem('sero_support_history', JSON.stringify(updated));
-
-    triggerPushNotification(
-      "🚩 Report Submitted",
-      "Thanks for the report. Our team reviews safety disputes and objectionable listings within 24 hours."
-    );
+  // Reports a listing/seller. The report is written to Firestore so it actually
+  // reaches Himpower's moderation queue, and is mirrored into the reporter's
+  // own ticket history so nothing silently disappears.
+  const handleReportListing = async (product: Product, reason: string) => {
+    if (!currentUser) return;
+    try {
+      await submitListingReport({
+        reporterId: currentUser.uid,
+        reporterEmail: currentUser.email || '(no email on account)',
+        productId: product.id,
+        productTitle: product.title,
+        sellerId: product.seller.id,
+        sellerName: product.seller.name,
+        reason,
+      });
+      triggerPushNotification(
+        "\ud83d\udea9 Report Submitted",
+        "Thank you. Our moderation team reviews reported listings within 24 hours."
+      );
+    } catch (err) {
+      console.error('[Support] Report submission failed:', err);
+      triggerPushNotification(
+        "\u26a0\ufe0f Report not sent",
+        "We could not submit your report. Check your connection and try again."
+      );
+    }
   };
 
   const handleBlockSeller = (sellerId: string, sellerName: string) => {
@@ -1981,26 +2022,71 @@ export default function App() {
     setShowAvatarCreator(true);
   };
 
-  // Dynamic products state to support live trust score changes on review
-  const [products, setProducts] = useState<Product[]>([INITIAL_MY_PRODUCT, ...MOCK_PRODUCTS]);
+  // Live listings from Firestore. There is deliberately no sample-data
+  // fallback: showing invented listings and invented sellers to a real user
+  // would be misleading, and App Review treats placeholder content as
+  // incomplete functionality. If the feed cannot load we say so instead.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [feedError, setFeedError] = useState('');
+  const [feedLoading, setFeedLoading] = useState(true);
 
-  // Live product feed from Firestore — this is what replaces the old
-  // hardcoded MOCK_PRODUCTS-only feed with real, shared listings. Falls back
-  // to the sample data above (with a console warning) until Firebase is
-  // configured in src/firebase.ts, so local dev still works out of the box.
   useEffect(() => {
     const unsubscribe = subscribeToProducts(
-      (liveProducts) => setProducts(liveProducts),
+      (liveProducts) => {
+        setProducts(liveProducts);
+        setFeedError('');
+        setFeedLoading(false);
+      },
       (error) => {
-        console.warn(
-          '[Firestore] Live products unavailable — showing sample data instead. ' +
-          'Configure src/firebase.ts (see FIREBASE_SETUP.md) to go live.',
-          error
-        );
+        console.error('[Firestore] Live products unavailable:', error);
+        setFeedError('Listings could not be loaded. Check your connection and pull to retry.');
+        setFeedLoading(false);
       }
     );
     return unsubscribe;
   }, []);
+
+  // Real price-drop / sold-out alerts for saved items. This compares each new
+  // Firestore snapshot against the previous one, so the alert fires from an
+  // actual change made by an actual seller.
+  const watchedRef = useRef<Record<string, { price: number; isSold?: boolean }>>({});
+  useEffect(() => {
+    const next: Record<string, { price: number; isSold?: boolean }> = {};
+    products.forEach((p) => {
+      next[p.id] = { price: p.price, isSold: p.isSold };
+      if (!cart.includes(p.id)) return;
+      const before = watchedRef.current[p.id];
+      if (!before) return;
+      if (p.price < before.price) {
+        triggerPushNotification(
+          '📉 Price Drop',
+          `"${p.title}" in your cart is now Rs. ${p.price.toLocaleString()}.`
+        );
+      } else if (p.isSold && !before.isSold) {
+        triggerPushNotification(
+          '🚫 Item Sold',
+          `"${p.title}" in your cart has been sold to another neighbor.`
+        );
+      }
+    });
+    watchedRef.current = next;
+  }, [products, cart]);
+
+  // The listings actually shown in the feed: category filter, search text and
+  // the user's block list applied together.
+  const visibleProducts = products
+    .filter((p) => activeCategory === 'All' || p.category === activeCategory)
+    .filter((p) => !blockedSellers.some((b) => b.id === p.seller.id))
+    .filter((p) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.location.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+      );
+    });
 
   // Sync avatar changes back to ME_USER and product seller instances dynamically
   useEffect(() => {
@@ -2268,24 +2354,15 @@ export default function App() {
     }
   }, [notification]);
 
-  // Request browser permissions automatically on login, and queue a test notification after 12s
+  // Request notification permission shortly after login. Nothing fake is ever
+  // pushed here — every notification the user sees comes from a real event
+  // (a new message, a price change, or a listing being marked sold).
   useEffect(() => {
-    if (isLoggedIn) {
-      // Small delay before requesting to feel organic
-      setTimeout(() => {
-        requestNotificationPermission();
-      }, 2000);
-
-      // Trigger a realistic simulated notification after 12 seconds
-      const simulatedTimer = setTimeout(() => {
-        triggerPushNotification(
-          "💬 Rajesh Kaji",
-          "Namaste! Is the price for the MacBook Pro negotiable? Can we meet at Durbar Marg?"
-        );
-      }, 12000);
-
-      return () => clearTimeout(simulatedTimer);
-    }
+    if (!isLoggedIn) return;
+    const timer = setTimeout(() => {
+      requestNotificationPermission();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [isLoggedIn]);
 
   if (authChecking) {
@@ -2297,7 +2374,14 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleGoogleLogin} isSigningIn={isSigningIn} error={authError} />;
+    return (
+      <LoginScreen
+        onLogin={handleGoogleLogin}
+        onAppleLogin={handleAppleLogin}
+        isSigningIn={isSigningIn}
+        error={authError}
+      />
+    );
   }
 
   return (
@@ -2355,6 +2439,8 @@ export default function App() {
               <input 
                 type="text" 
                 placeholder="Search items in your community..." 
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setActiveTab('home'); }}
                 className="w-full bg-white/10 border border-white/20 rounded-xl py-2 pl-10 pr-4 text-sm focus:bg-white focus:text-gray-900 transition-all outline-none placeholder:text-white/50"
               />
               <Search size={18} className="absolute left-3 top-2.5 text-white/50" />
@@ -2362,11 +2448,49 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Search size={22} className="md:hidden opacity-80 cursor-pointer hover:opacity-100" />
-            <Bell size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
-            <Menu size={22} className="opacity-80 cursor-pointer hover:opacity-100" />
+            <button
+              type="button"
+              aria-label="Search listings"
+              onClick={() => { setActiveTab('home'); setShowMobileSearch((v) => !v); }}
+              className="md:hidden opacity-80 hover:opacity-100 cursor-pointer"
+            >
+              <Search size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label="Your saved items and alerts"
+              onClick={() => setActiveTab('cart')}
+              className="opacity-80 hover:opacity-100 cursor-pointer"
+            >
+              <Bell size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label="Profile and settings"
+              onClick={() => setActiveTab('profile')}
+              className="opacity-80 hover:opacity-100 cursor-pointer"
+            >
+              <Menu size={22} />
+            </button>
           </div>
         </div>
+
+        {/* Mobile search field */}
+        {showMobileSearch && (
+          <div className="md:hidden px-4 pb-4 max-w-6xl mx-auto">
+            <div className="relative">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search items in your community..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-xl py-2 pl-10 pr-4 text-sm focus:bg-white focus:text-gray-900 transition-all outline-none placeholder:text-white/50"
+              />
+              <Search size={18} className="absolute left-3 top-2.5 text-white/50" />
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content Area */}
@@ -2380,7 +2504,10 @@ export default function App() {
                   <div className="relative z-10 max-w-md">
                     <h2 className="font-black text-2xl md:text-3xl leading-tight mb-2">Safe Face-to-Face Trading</h2>
                     <p className="text-sm md:text-base opacity-80 mb-6">Meet in public, verify the item, then pay in cash. Your safety is our priority.</p>
-                    <button className="bg-amber-500 text-teal-900 text-xs font-black px-6 py-3 rounded-full uppercase tracking-wider shadow-lg hover:bg-amber-400 transition-colors">
+                    <button
+                      onClick={() => setShowSafetyGuide(true)}
+                      className="bg-amber-500 text-teal-900 text-xs font-black px-6 py-3 rounded-full uppercase tracking-wider shadow-lg hover:bg-amber-400 transition-colors cursor-pointer"
+                    >
                       View Safety Guide
                     </button>
                   </div>
@@ -2408,9 +2535,7 @@ export default function App() {
 
               {/* Product Grid - Responsive Bento Columns */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 bg-gray-50/20">
-                {products
-                  .filter((p) => activeCategory === 'All' || p.category === activeCategory)
-                  .filter((p) => !blockedSellers.some((b) => b.id === p.seller.id))
+                {visibleProducts
                   .map((product) => (
                     <ProductCard 
                       key={product.id}
@@ -2419,6 +2544,34 @@ export default function App() {
                     />
                   ))}
               </div>
+
+              {/* Loading / error / empty states for the live feed */}
+              {feedLoading && (
+                <div className="px-6 pb-10 text-center text-xs font-bold text-gray-400">
+                  Loading listings near you…
+                </div>
+              )}
+
+              {!feedLoading && feedError && (
+                <div className="mx-4 md:mx-6 mb-10 bg-red-50 border border-red-100 rounded-3xl p-6 text-center space-y-2">
+                  <p className="text-sm font-black text-red-800">Listings unavailable</p>
+                  <p className="text-xs text-red-700/80 leading-relaxed">{feedError}</p>
+                </div>
+              )}
+
+              {!feedLoading && !feedError &&
+                visibleProducts.length === 0 && (
+                  <div className="mx-4 md:mx-6 mb-10 bg-white border border-gray-100 rounded-3xl p-10 text-center space-y-3 shadow-sm">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 border border-gray-100">
+                      <Tag size={26} />
+                    </div>
+                    <h3 className="font-black text-base text-gray-900">No listings here yet</h3>
+                    <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+                      Be the first neighbor to post something in this category — tap the + button to
+                      list an item.
+                    </p>
+                  </div>
+                )}
 
               {/* Company Branding Footer */}
               <footer className="py-12 px-6 text-center bg-gray-50 border-t border-gray-100">
@@ -2657,51 +2810,28 @@ export default function App() {
           {activeTab === 'life' && (
             <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
               <div className="bg-teal-800 text-white p-6 rounded-[28px] shadow-lg relative overflow-hidden">
-                <h2 className="font-black text-2xl tracking-tight mb-1">Vicinity Circles 🌱</h2>
-                <p className="text-xs text-teal-100/70">Connect, interact, and organize meet-ups with trusted neighbors in your community.</p>
-                <div className="mt-4 flex gap-2">
-                  <span className="bg-white/15 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-white/5">3 Active Circles</span>
-                  <span className="bg-amber-500 text-teal-950 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full">Kathmandu Area</span>
-                </div>
+                <h2 className="font-black text-2xl tracking-tight mb-1">Vicinity Circles \ud83c\udf31</h2>
+                <p className="text-xs text-teal-100/70">Neighbourhood groups for meet-ups and community trade.</p>
               </div>
 
-              {/* Circles feed */}
-              <div className="space-y-4">
-                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">KTM Techies Circle</span>
-                    <span className="text-[9px] text-gray-400 font-bold">2 hours ago</span>
-                  </div>
-                  <h3 className="font-black text-sm text-gray-900">Weekly meet-up at Patan Cafe?</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed font-medium">
-                    "Hey techies! Serofero's Kathmandu network is growing. Anyone up for a coffee chat this Thursday to talk local tech and trade safety? First 3 handshakes get free americano!"
-                  </p>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                    <div className="flex items-center gap-2">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Anish" className="w-6 h-6 rounded-full" />
-                      <span className="text-[10px] font-bold text-gray-600">Anish Giri (Golden Clasp 🤝)</span>
-                    </div>
-                    <span className="text-[10px] text-teal-800 font-extrabold bg-teal-50 px-2.5 py-1 rounded-lg cursor-pointer">Join Circle</span>
-                  </div>
+              <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-10 text-center space-y-4">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 border border-gray-100">
+                  <Users size={28} />
                 </div>
-
-                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">Lalitpur Riders</span>
-                    <span className="text-[9px] text-gray-400 font-bold">Yesterday</span>
-                  </div>
-                  <h3 className="font-black text-sm text-gray-900">Classic 350 Group Ride to Dhulikhel</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed font-medium">
-                    "Planning a warm morning cruise this Saturday. All riders who completed at least 3 Serofero handshakes are welcome. Safety gears are strictly required!"
+                <div className="space-y-1.5">
+                  <h3 className="font-black text-base text-gray-900">Circles are coming soon</h3>
+                  <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+                    We are building neighbourhood circles so you can organise group meet-ups and
+                    trade safely with people you already know. Until then, browse listings and
+                    arrange handshakes directly from the home feed.
                   </p>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                    <div className="flex items-center gap-2">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sita" className="w-6 h-6 rounded-full" />
-                      <span className="text-[10px] font-bold text-gray-600">Sita Sharma (Unshakable Bond 💎)</span>
-                    </div>
-                    <span className="text-[10px] text-teal-800 font-extrabold bg-teal-50 px-2.5 py-1 rounded-lg cursor-pointer">Join Circle</span>
-                  </div>
                 </div>
+                <button
+                  onClick={() => setActiveTab('home')}
+                  className="bg-teal-700 hover:bg-teal-800 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all"
+                >
+                  Explore Listings
+                </button>
               </div>
             </div>
           )}
@@ -2735,7 +2865,8 @@ export default function App() {
                   Real-time Vicinity Price Drop & Sale Alerts
                 </h4>
                 <p className="text-xs text-teal-800 leading-relaxed font-medium">
-                  We automatically monitor saved items in your cart. You will receive immediate browser push and in-app notifications if a seller lowers the price or if the item gets sold. Try the **interactive state simulator** below to test this feature!
+                  Saved items are watched live. If a seller lowers the price or marks an item
+                  as sold while you have the app open, you get an instant alert — no refresh needed.
                 </p>
               </div>
 
@@ -2748,7 +2879,7 @@ export default function App() {
                   <div className="space-y-1.5">
                     <h3 className="font-black text-base text-gray-900">Your Cart is Empty</h3>
                     <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
-                      Browse neighborhood listings and tap the **Heart** button to save items you wish to follow.
+                      Browse neighborhood listings and tap the heart button to save items you wish to follow.
                     </p>
                   </div>
                   <button 
@@ -2848,38 +2979,6 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* Interactive alert simulation panel */}
-                        <div className="bg-amber-500/5 rounded-2xl p-3 border border-amber-500/10 mt-3 space-y-2">
-                          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-800 tracking-wider">
-                            <BellRing size={12} className="text-amber-600 animate-pulse" />
-                            <span>Trade Alert Simulator</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <button 
-                              onClick={() => simulatePriceDrop(product.id)}
-                              disabled={product.isSold}
-                              className="bg-amber-500 hover:bg-amber-600 text-teal-950 py-1.5 rounded-lg font-black text-[9px] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Trigger simulated price drop alert"
-                            >
-                              📉 Price -10%
-                            </button>
-                            <button 
-                              onClick={() => simulateSoldOut(product.id)}
-                              disabled={product.isSold}
-                              className="bg-red-600 hover:bg-red-700 text-white py-1.5 rounded-lg font-black text-[9px] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Trigger simulated sold out alert"
-                            >
-                              🚫 Mark Sold
-                            </button>
-                            <button 
-                              onClick={() => simulateResetProduct(product.id)}
-                              className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded-lg font-black text-[9px] active:scale-95 transition-all"
-                              title="Reset status and price"
-                            >
-                              🔄 Reset
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     );
                   })}
@@ -2916,12 +3015,11 @@ export default function App() {
                         🛡️ SeroID Verified
                       </span>
                     </div>
-                    <p className="text-xs text-teal-100/80 font-medium">himpower2025@gmail.com</p>
-                    <p className="text-xs text-teal-100/60 font-medium">+977 981******8 (OTP Secured)</p>
+                    <p className="text-xs text-teal-100/80 font-medium">{currentUser?.email || 'No email on this account'}</p>
                     <div className="flex flex-wrap justify-center sm:justify-start gap-3 pt-2">
                       <div className="flex items-center gap-1 text-[10px] bg-white/10 text-white font-bold px-2.5 py-1 rounded-full border border-white/5">
                         <MapPin size={10} />
-                        <span>{ME_USER.location} (Ward 3)</span>
+                        <span>{ME_USER.location}</span>
                       </div>
                       <div className="flex items-center gap-1 text-[10px] bg-white/10 text-white font-bold px-2.5 py-1 rounded-full border border-white/5">
                         <Calendar size={10} />
@@ -3097,7 +3195,7 @@ export default function App() {
 
                 {/* Grid for device and system perms */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Location tracking disclosure (Apple 5.1.1 iv) */}
+                  {/* Location permission disclosure */}
                   <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100/50 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center gap-1">
@@ -3121,7 +3219,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Push notifications disclosure (Apple 5.1.1 v) */}
+                  {/* Notification permission disclosure */}
                   <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100/50 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center gap-1">
@@ -3146,11 +3244,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Support and Dispute Resolution Form (Apple 5.1.1 contact criteria) */}
+                {/* Support and dispute resolution form */}
                 <div className="border-t border-gray-50 pt-4 space-y-3">
                   <div>
                     <h4 className="text-[11px] font-black uppercase tracking-wider text-teal-900">📬 Support & Dispute Resolution Desk</h4>
-                    <p className="text-[10px] text-gray-400">Apple Guideline 5.1.1 Help Center & Content Reporting</p>
+                    <p className="text-[10px] text-gray-400">Report abuse, disputes or bugs — every ticket reaches our team.</p>
                   </div>
 
                   <form onSubmit={(e) => { e.preventDefault(); handleSubmitSupport(e); }} className="space-y-2.5">
@@ -3185,7 +3283,7 @@ export default function App() {
                       <textarea 
                         required
                         rows={2}
-                        placeholder="Please describe your inquiry. Tickets are routed to himpower2025@gmail.com. We respond within 24 hours."
+                        placeholder="Please describe your inquiry. Our team responds within 2 business days."
                         value={supportMessage}
                         onChange={(e) => setSupportMessage(e.target.value)}
                         className="w-full bg-gray-50 border-none rounded-xl p-2.5 text-[10px] font-medium text-gray-800 focus:ring-1 focus:ring-teal-700 placeholder:text-gray-400"
@@ -3205,12 +3303,12 @@ export default function App() {
                     <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/60 mt-3 space-y-2">
                       <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">My Ticket History</span>
                       <div className="space-y-2 max-h-32 overflow-y-auto no-scrollbar">
-                        {supportHistory.map((item: any) => (
+                        {supportHistory.map((item) => (
                           <div key={item.id} className="bg-white p-2.5 rounded-xl border border-gray-50 flex justify-between items-start text-[10px] gap-2">
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 mb-1">
                                 <span className="font-extrabold text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded text-[9px]">{item.type}</span>
-                                <span className="text-gray-400 text-[8px]">{item.timestamp}</span>
+                                <span className="text-gray-400 text-[8px]">{new Date(item.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="text-gray-700 font-medium truncate">{item.message}</p>
                             </div>
@@ -3228,7 +3326,7 @@ export default function App() {
                 <div className="border-t border-gray-50 pt-4 space-y-2">
                   <div>
                     <h4 className="text-[11px] font-black uppercase tracking-wider text-teal-900">🚫 Blocked Sellers</h4>
-                    <p className="text-[10px] text-gray-400">Apple Guideline 1.2 Content & User Blocking</p>
+                    <p className="text-[10px] text-gray-400">Blocked neighbors cannot appear in your feed or message you.</p>
                   </div>
                   {blockedSellers.length === 0 ? (
                     <p className="text-[10px] text-gray-400 leading-normal">You haven't blocked anyone. Block a seller from any listing's ••• menu to hide their listings and messages.</p>
@@ -3249,14 +3347,16 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Account Deletion Area (Apple Guideline 5.1.1 v) */}
+                {/* Account deletion */}
                 <div className="border-t border-gray-50 pt-4 space-y-2">
                   <div>
                     <h4 className="text-[11px] font-black uppercase tracking-wider text-red-800">🗑️ Account Deletion & Right to be Forgotten</h4>
-                    <p className="text-[10px] text-gray-400">Apple Guideline 5.1.1(v) Mandatory Account Deletion Feature</p>
+                    <p className="text-[10px] text-gray-400">Permanently erase your account, listings and chats.</p>
                   </div>
                   <p className="text-[10px] text-gray-500 leading-normal">
-                    Permanently deletes all your local Sero ID profile settings, customized avatar setups, handshake messages, and cart checklists from this device.
+                    This erases your Serofero account itself, every listing you published, your chat
+                    threads, your support tickets and all settings stored on this device. It cannot be
+                    undone, and you will be signed out immediately.
                   </p>
                   <button 
                     onClick={() => setShowDeleteAccountConfirm(true)}
@@ -3710,192 +3810,36 @@ export default function App() {
 
       {/* Serofero Terms of Service Modal */}
       <AnimatePresence>
+        {showSafetyGuide && (
+          <LegalModal
+            eyebrow="Serofero"
+            title="Safety Guide"
+            onClose={() => setShowSafetyGuide(false)}
+            url={`${LEGAL_BASE_URL}/terms.html`}
+            summary="Meet in a busy public place during daylight — a cafe, a shop front, a ward office. Bring someone with you for high-value items. Inspect the item fully before any money changes hands, and pay only at the moment of handover. Never send an advance payment, a deposit, or a top-up code to someone you have not met. Serofero never asks for your password, OTP or bank details. If a listing or a message feels wrong, use Report on the listing and Block the seller — reports are reviewed within 24 hours."
+          />
+        )}
+
         {showTerms && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2000] flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-100 flex flex-col my-8 max-h-[85vh]"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-teal-800 to-teal-900 text-white p-6 relative flex-shrink-0">
-                <button 
-                  onClick={() => setShowTerms(false)}
-                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-                <div className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-teal-300 mb-1">
-                  <ShieldCheck size={14} className="text-amber-400" />
-                  <span>Sero Trust & Safety</span>
-                </div>
-                <h3 className="text-xl font-black tracking-tight mt-1">Terms of Service</h3>
-                <p className="text-xs text-teal-100/70 mt-1">Last Updated: July 2026</p>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="flex-grow overflow-y-auto p-6 space-y-5 text-gray-600 text-xs leading-relaxed font-medium">
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">1. Acceptance of Terms</h4>
-                  <p>
-                    Welcome to Serofero. These Terms of Service ("Terms") govern your access to and use of the Serofero listing platform, mobile applications, and services ("Services") operated and maintained by <span className="font-bold text-gray-950">Himpower Pvt. Ltd.</span> By registering a Sero ID or using our Services, you agree to be bound by these Terms and our Privacy Policy.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">2. Nature of Serofero</h4>
-                  <p>
-                    Serofero is a hyper-local peer-to-peer neighborhood marketplace platform designed to facilitate face-to-face handshakes and local item exchanges in Kathmandu and surrounding Nepalese municipalities. 
-                  </p>
-                  <p className="mt-1 bg-amber-50 text-amber-900 p-3 rounded-2xl font-semibold border border-amber-100/40">
-                    ⚠️ <span className="font-bold uppercase tracking-wider text-[10px] text-amber-950 block mb-0.5">Critical Notice</span>
-                    Serofero does NOT act as an escrow, shipping service, middleman, or payment processor. All meetups, item inspections, and cash/payment exchanges are conducted directly between users at their own risk. We strongly advise meeting in highly visible public locations and verifying goods prior to any exchange.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">3. Prohibited Transactions</h4>
-                  <p>
-                    Users are strictly prohibited from listing, chatting about, or exchanging counterfeit merchandise, stolen items, hazardous goods, firearms, weapons, illegal drugs, prescription medications, or any items violating Nepalese trade laws. You represent that you are the lawful owner of any listing you publish.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">4. Sero Trust Score & Feedback</h4>
-                  <p>
-                    To ensure neighborhood transparency, users agree to participate in honest feedback surveys following local exchanges. Your Sero Trust Score and community accolades are dynamically calculated based on neighbor feedback. Serofero reserves the right to restrict or terminate accounts that consistently receive negative feedback or violate trust policies.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">5. Reporting & Blocking</h4>
-                  <p>
-                    Users can report objectionable listings and block other users directly from a listing's ••• menu. Reports are reviewed by our team. Serofero reserves the right to remove content or suspend accounts that violate these Terms.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">6. Limitation of Liability</h4>
-                  <p>
-                    Himpower Pvt. Ltd. shall not be liable for any disputes, financial losses, personal safety incidents, or transaction failures that occur during face-to-face user meetups. Our platform is provided "as is" without warranties of any kind.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">7. Contact Information</h4>
-                  <p>
-                    For legal questions or platform assistance, please reach out to our administration office: <span className="font-bold text-teal-800">legal@sero.com</span>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Footer Actions */}
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowTerms(false)}
-                  className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-teal-100 text-center"
-                >
-                  Close & Acknowledge
-                </button>
-              </div>
-            </motion.div>
-          </div>
+          <LegalModal
+            eyebrow="Serofero"
+            title="Terms of Service"
+            onClose={() => setShowTerms(false)}
+            url={`${LEGAL_BASE_URL}/terms.html`}
+            summary="Serofero connects neighbours for face-to-face second-hand trades. We are not an escrow, shipping or payment service, and we are not a party to any transaction — always meet in a public place and inspect an item before paying. Listing stolen, counterfeit, illegal or dangerous goods is forbidden, and reported listings are reviewed within 24 hours."
+          />
         )}
-      </AnimatePresence>
 
-      {/* Serofero Privacy Policy Modal */}
-      <AnimatePresence>
         {showPrivacy && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2000] flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-100 flex flex-col my-8 max-h-[85vh]"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-teal-800 to-teal-900 text-white p-6 relative flex-shrink-0">
-                <button 
-                  onClick={() => setShowPrivacy(false)}
-                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-                <div className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-teal-300 mb-1">
-                  <Lock size={14} className="text-amber-400" />
-                  <span>Sero ID Privacy</span>
-                </div>
-                <h3 className="text-xl font-black tracking-tight mt-1">Privacy Policy</h3>
-                <p className="text-xs text-teal-100/70 mt-1">Last Updated: July 2026</p>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="flex-grow overflow-y-auto p-6 space-y-5 text-gray-600 text-xs leading-relaxed font-medium">
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">1. Commitment to Privacy</h4>
-                  <p>
-                    <span className="font-bold text-gray-950">Himpower Pvt. Ltd.</span> is committed to protecting your neighborhood privacy. This policy details how we handle Sero ID details, listing metrics, and trade chat histories to ensure safe local exchanges.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">2. Information We Collect</h4>
-                  <ul className="list-disc pl-5 space-y-1 mt-1">
-                    <li><span className="font-bold text-teal-950">Registration Details</span>: Your username, contact email, neighborhood ward location, and secure local options (e.g. customized Sero avatar).</li>
-                    <li><span className="font-bold text-teal-950">Listing Content</span>: Uploaded item photos, descriptions, and pricing published in our public feed catalog.</li>
-                    <li><span className="font-bold text-teal-950">Transaction Feedback</span>: Community ratings and ratings provided by other neighbors to formulate public trust indices.</li>
-                    <li><span className="font-bold text-teal-950">Chat Messages</span>: Temporary vicinity chat history to allow convenient arrangement of local trade handshakes.</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">3. How We Use Information</h4>
-                  <p>
-                    Your neighborhood proximity and customized avatar are shared publicly with potential buyers or sellers to build community context. Your trust percentage and accolades are displayed clearly to certify your reliability. We do NOT share or sell message histories or personal metadata.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">4. Secure Storage & Local Indexing</h4>
-                  <p>
-                    Data is handled securely inside local storage caches and verified server configurations. We employ industry-standard encryption protocols to protect your registered contact numbers and active listing photos.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">5. Your Data Control</h4>
-                  <p>
-                    You have absolute control over your catalog. Deleting an active product listing from your Profile tab permanently removes all associated images, pricing, and descriptions from the Serofero feed. You can update your custom avatar styling at any time.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-teal-900 text-xs uppercase tracking-wider mb-1">6. Contact Privacy Office</h4>
-                  <p>
-                    If you wish to request permanent Sero ID deletion, or ask privacy-related questions, please write to our privacy officer at <span className="font-bold text-teal-800">privacy@sero.com</span>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Footer Actions */}
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowPrivacy(false)}
-                  className="w-full py-3.5 bg-teal-800 hover:bg-teal-900 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-teal-100 text-center"
-                >
-                  Close & Acknowledge
-                </button>
-              </div>
-            </motion.div>
-          </div>
+          <LegalModal
+            eyebrow="Serofero"
+            title="Privacy Policy"
+            onClose={() => setShowPrivacy(false)}
+            url={`${LEGAL_BASE_URL}/privacy.html`}
+            summary="We collect your name, email and photo from Google or Apple sign-in, the listings and photos you publish, your chat messages, and — only with your permission and only while the app is open — your approximate location. Data is stored on Google Firebase. We never sell your data. You can erase your account and everything in it from Profile → Compliance Center → Delete Account."
+          />
         )}
-      </AnimatePresence>
 
-      {/* Serofero Mandatory Account Deletion Confirmation Modal */}
-      <AnimatePresence>
         {showDeleteAccountConfirm && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[2100] flex items-center justify-center p-4 overflow-y-auto">
             <motion.div 
@@ -3916,14 +3860,14 @@ export default function App() {
                   <Trash2 size={24} className="text-white animate-bounce" />
                 </div>
                 <h3 className="text-lg font-black tracking-tight">Permanent Deletion Warning</h3>
-                <p className="text-xs text-red-100/70 mt-1">Sero ID & Local Cache Deletion</p>
+                <p className="text-xs text-red-100/70 mt-1">Your account and all of its data</p>
               </div>
 
               {/* Warnings Content */}
               <div className="p-6 space-y-4 text-xs font-medium text-gray-600 leading-relaxed">
                 <div className="bg-red-50 text-red-900 p-4 rounded-2xl border border-red-100/60 font-semibold space-y-1">
-                  <span className="font-extrabold uppercase tracking-wider text-[10px] text-red-950 block">⚠️ Important Notice (Regulatory Notice)</span>
-                  <p>This action is irreversible. The following data associated with your local account will be permanently purged from this device immediately:</p>
+                  <span className="font-extrabold uppercase tracking-wider text-[10px] text-red-950 block">⚠️ This cannot be undone</span>
+                  <p>Your Serofero account will be closed and the following will be permanently deleted from our servers and from this device:</p>
                 </div>
 
                 <div className="space-y-2">
@@ -3946,7 +3890,7 @@ export default function App() {
                 </div>
 
                 <p className="text-[10.5px] text-gray-400 font-bold text-center border-t border-gray-100 pt-3">
-                  This deletion purge conforms to the App Store Privacy Guidelines (Guideline 5.1.1) to protect user data.
+                  If you signed in a while ago, you may be asked to sign in again before the deletion can be completed.
                 </p>
               </div>
 
@@ -3962,9 +3906,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handlePermanentlyDeleteAccount}
-                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center shadow-md shadow-red-100"
+                  disabled={isDeletingAccount}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center shadow-md shadow-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Delete
+                  {isDeletingAccount ? 'Deleting…' : 'Delete'}
                 </button>
               </div>
             </motion.div>

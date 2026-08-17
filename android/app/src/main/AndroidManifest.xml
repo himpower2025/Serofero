@@ -35,8 +35,6 @@
     <!-- Used by @capacitor/geolocation — matches the "find nearby listings" feature -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- Required on Android 13+ for @capacitor/push-notifications to show notifications -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Used by @capacitor/camera — listing photo capture -->
     <uses-permission android:name="android.permission.CAMERA" />
 </manifest>

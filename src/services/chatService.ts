@@ -15,6 +15,8 @@ import {
   setDoc,
   updateDoc,
   getDoc,
+  getDocs,
+  deleteDoc,
   onSnapshot,
   orderBy,
   query,
@@ -139,6 +141,22 @@ export const sendChatMessage = async (chatId: string, senderId: string, text: st
     lastMessageText: text,
     lastMessageAt: now,
   });
+};
+
+/**
+ * Deletes every chat room the user takes part in, plus the messages inside
+ * them. Called during account deletion so "delete my account" really removes
+ * the user's conversation data instead of only signing them out.
+ */
+export const deleteAllChatsForUser = async (uid: string): Promise<void> => {
+  if (!isFirebaseConfigured) return;
+  const q = query(collection(db, CHATS_COLLECTION), where('participantIds', 'array-contains', uid));
+  const rooms = await getDocs(q);
+  for (const room of rooms.docs) {
+    const messages = await getDocs(collection(db, CHATS_COLLECTION, room.id, 'messages'));
+    await Promise.all(messages.docs.map((m) => deleteDoc(m.ref)));
+    await deleteDoc(room.ref);
+  }
 };
 
 /** Posts a system message and marks the room as a completed handshake. */

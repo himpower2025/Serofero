@@ -1,0 +1,107 @@
+rules_version = '2';
+
+// Serofero Firestore security rules.
+//
+// Deploy with:  firebase deploy --only firestore:rules
+//
+// Design notes:
+// - Everything requires an authenticated user. There is no anonymous browsing.
+// - Listings are publicly readable by signed-in users but only writable by the
+//   seller who created them.
+// - Chats are readable/writable only by the two participants.
+// - Reports and support tickets are write-only from the client: a user can file
+//   one and read back their own, but nobody can read anyone else's. Staff read
+//   them from the Firebase console / Admin SDK, which bypasses these rules.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---------------- Listings ----------------
+    match /products/{productId} {
+      allow read: if signedIn();
+
+      // The seller embedded in a new listing must be the person creating it,
+      // otherwise anyone could publish listings under someone else's name.
+      allow create: if signedIn()
+                    && request.resource.data.seller.id == request.auth.uid
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.price is number
+                    && request.resource.data.price >= 0;
+
+      allow update, delete: if signedIn()
+                            && resource.data.seller.id == request.auth.uid;
+    }
+
+    // ---------------- Chats ----------------
+    match /chats/{chatId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participantIds;
+
+      allow create: if signedIn()
+                    && request.auth.uid in request.resource.data.participantIds
+                    && request.resource.data.participantIds.size() == 2;
+
+      // Participants may update the preview fields and close the thread, but
+      // may not rewrite who the participants are.
+      allow update: if signedIn()
+                    && request.auth.uid in resource.data.participantIds
+                    && request.resource.data.participantIds == resource.data.participantIds;
+
+      allow delete: if signedIn() && request.auth.uid in resource.data.participantIds;
+
+      match /messages/{messageId} {
+        function room() {
+          return get(/databases/$(database)/documents/chats/$(chatId)).data;
+        }
+
+        allow read: if signedIn() && request.auth.uid in room().participantIds;
+
+        // A message must be sent by the signed-in user (or be the automatic
+        // 'system' notice written when a thread opens or a handshake closes).
+        allow create: if signedIn()
+                      && request.auth.uid in room().participantIds
+                      && (request.resource.data.senderId == request.auth.uid
+                          || request.resource.data.senderId == 'system')
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 2000;
+
+        // Messages are immutable; deletion is only allowed so account deletion
+        // can clear a participant's history.
+        allow update: if false;
+        allow delete: if signedIn() && request.auth.uid in room().participantIds;
+      }
+    }
+
+    // ---------------- Abuse reports ----------------
+    match /reports/{reportId} {
+      // Only staff (Admin SDK / console) read the moderation queue.
+      allow read: if false;
+      allow create: if signedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() <= 1000;
+      allow update, delete: if false;
+    }
+
+    // ---------------- Support tickets ----------------
+    match /support_tickets/{ticketId} {
+      allow read: if signedIn() && resource.data.reporterId == request.auth.uid;
+      allow create: if signedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() <= 4000;
+      allow update: if false;
+      // Needed so "delete my account" can remove the user's own tickets.
+      allow delete: if signedIn() && resource.data.reporterId == request.auth.uid;
+    }
+
+    // Anything not matched above is denied.
+  }
+}
